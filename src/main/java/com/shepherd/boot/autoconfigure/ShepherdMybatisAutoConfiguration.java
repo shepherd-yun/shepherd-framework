@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Bean;
 
 import java.util.Optional;
 
-@AutoConfiguration(after = ShepherdCoreAutoConfiguration.class)
+@AutoConfiguration
 @ConditionalOnClass(MybatisPlusInterceptor.class)
 @EnableConfigurationProperties(ShepherdMybatisProperties.class)
 public class ShepherdMybatisAutoConfiguration {

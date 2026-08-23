@@ -1,2 +1,3 @@
 com.shepherd.boot.autoconfigure.ShepherdCoreAutoConfiguration
 com.shepherd.boot.autoconfigure.ShepherdMybatisAutoConfiguration
+com.shepherd.boot.autoconfigure.ShepherdSecurityAutoConfiguration

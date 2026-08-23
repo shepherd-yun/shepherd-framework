@@ -19,7 +19,7 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.util.Optional;
 
-@AutoConfiguration
+@AutoConfiguration(after = ShepherdSecurityAutoConfiguration.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class ShepherdCoreAutoConfiguration {
 
