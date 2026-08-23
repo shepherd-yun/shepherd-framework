@@ -42,7 +42,7 @@ Starter 内部把重型依赖标记为 `optional=true`，不会传递给下游�
 
 | 属性 | 默认值 | 说明 |
 |---|---|---|
-| `shepherd.security.enabled` | `true` | 关闭后不注册任何安全 Bean，也不再要求 Redis |
+| `shepherd.security.enabled` | `true` | 关闭后不注册 Starter 的 JWT 安全链，也不再要求 Redis；**不等于关闭鉴权**——只要 classpath 上仍有 spring-security，Spring Boot 会回落到其默认的 basic/form 登录链并生成随机密码，若要完全放行所有请求需自行声明 `SecurityFilterChain` Bean |
 | `shepherd.security.permit-urls` | `/swagger-ui/**`、`/swagger-ui.html`、`/v3/api-docs/**`、`/actuator/health` | 免认证路径列表。**List 绑定是整体替换，不是追加**——下游一旦在 yaml 中写了这项，必须把需要保留的默认项一并抄进去 |
 | `shepherd.security.jwt.secret` | 无默认值 | 缺失或短于 32 字节，启动直接失败（Starter 不再向外分发弱默认密钥） |
 | `shepherd.security.jwt.access-ttl-seconds` | `7200` | access token 有效期（秒） |

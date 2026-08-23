@@ -25,7 +25,10 @@ public class JwtTokenProvider {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(
                     "shepherd.security.jwt.secret 未配置。请设置一个至少 32 字节的密钥"
-                    + "（建议经环境变量注入），或设置 shepherd.security.enabled=false 关闭鉴权。");
+                    + "（建议经环境变量注入）；或设置 shepherd.security.enabled=false 关闭 Starter 的 JWT 安全链"
+                    + "——注意这不等于关闭鉴权：只要 classpath 上仍有 spring-security，Spring Boot 会回落到"
+                    + "其默认的 basic/form 登录链并生成一个随机密码。若要完全放行所有请求，需自行声明一个"
+                    + "SecurityFilterChain Bean。");
         }
         int len = secret.getBytes(StandardCharsets.UTF_8).length;
         if (len < MIN_SECRET_BYTES) {

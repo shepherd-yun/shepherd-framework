@@ -54,7 +54,10 @@ public class ShepherdSecurityAutoConfiguration {
                 三条出路，任选其一：
                   1. 引入 spring-boot-starter-data-redis 并配置 spring.data.redis.*
                   2. 自行声明一个 LoginTokenStore Bean
-                  3. 设置 shepherd.security.enabled=false 关闭鉴权
+                  3. 设置 shepherd.security.enabled=false 关闭 Starter 的 JWT 安全链
+                     （注意这不等于关闭鉴权：只要 classpath 上仍有 spring-security，
+                     Spring Boot 会回落到其默认的 basic/form 登录链并生成一个随机密码；
+                     若要完全放行所有请求，需自行声明一个 SecurityFilterChain Bean）
                 注意：不提供无状态降级实现，因为那会使登出与踢人静默失效。""");
     }
 

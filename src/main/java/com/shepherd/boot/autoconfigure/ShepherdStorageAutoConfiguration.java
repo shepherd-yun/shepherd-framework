@@ -19,6 +19,27 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 @EnableConfigurationProperties(StorageProperties.class)
 public class ShepherdStorageAutoConfiguration {
 
+    /**
+     * 缺依赖时的 fail-fast。provider=s3/aliyun 但对应 SDK 不在 classpath 时，两个嵌套
+     * @Configuration 都会被 @ConditionalOnClass 静默跳过，若不兜底，应用会正常启动，
+     * 直到某个业务类注入 ObjectStorage 时才报一个难懂的 NoSuchBeanDefinitionException。
+     * 嵌套 @Configuration 类在配置解析阶段先于外层类自身的 @Bean 方法被处理并登记，
+     * 依赖齐全时其 ObjectStorage Bean 先注册，本方法的 @ConditionalOnMissingBean 因而
+     * 不会触发（已用 ApplicationContextRunner 验证，见 ShepherdStorageAutoConfigurationTest）。
+     */
+    @Bean
+    @ConditionalOnMissingBean(ObjectStorage.class)
+    public ObjectStorage missingObjectStorage(StorageProperties properties) {
+        String required = switch (properties.getProvider()) {
+            case S3 -> "software.amazon.awssdk:s3 与 software.amazon.awssdk:apache-client";
+            case ALIYUN -> "com.aliyun.oss:aliyun-sdk-oss";
+        };
+        throw new IllegalStateException(
+                "对象存储已启用（shepherd.storage.provider=" + properties.getProvider()
+                + "），但 classpath 上缺少对应 SDK：需要引入 " + required + "。"
+                + "或设置 shepherd.storage.enabled=false 关闭对象存储。");
+    }
+
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(S3Client.class)
     @ConditionalOnProperty(prefix = "shepherd.storage", name = "provider", havingValue = "s3", matchIfMissing = true)
