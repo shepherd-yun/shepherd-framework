@@ -10,6 +10,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public class RestAuthEntryPoint implements AuthenticationEntryPoint {
 
@@ -24,6 +25,7 @@ public class RestAuthEntryPoint implements AuthenticationEntryPoint {
             throws IOException {
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         objectMapper.writeValue(response.getWriter(), Result.fail(CommonResultCode.UNAUTHORIZED));
     }
 }
