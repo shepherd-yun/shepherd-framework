@@ -76,9 +76,10 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>
             <optional>true</optional>
-            <!-- 排除 commons-logging：httpclient 4.x 直接依赖它，会引入一份独立于
-                 Spring Framework 自带 commons-logging（spring-core 传递依赖）之外的
-                 额外副本，多份同名类共存时日志实际走哪套取决于类加载顺序。 -->
+            <!-- 排除 commons-logging：版本收敛而非同名类冲突（Spring Framework 7 已弃用
+                 spring-jcl，spring-core 直接声明 commons-logging）。排除后 commons-logging
+                 只经 spring-core 一条边到达，避免 httpclient 4.x 传递进来的另一版本
+                 经 Maven「最近者优先」仲裁产生不确定性。 -->
             <exclusions>
                 <exclusion>
                     <groupId>commons-logging</groupId>
