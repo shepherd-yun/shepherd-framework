@@ -76,6 +76,20 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>
             <optional>true</optional>
+            <!-- 排除 commons-logging：httpclient 4.x 直接依赖它，会引入一份独立于
+                 Spring Framework 自带 commons-logging（spring-core 传递依赖）之外的
+                 额外副本，多份同名类共存时日志实际走哪套取决于类加载顺序。 -->
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.aliyun.oss</groupId>
+            <artifactId>aliyun-sdk-oss</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <!-- ===== 测试 ===== -->

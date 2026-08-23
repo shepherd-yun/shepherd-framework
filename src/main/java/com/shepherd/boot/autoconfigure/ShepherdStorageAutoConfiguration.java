@@ -42,4 +42,23 @@ public class ShepherdStorageAutoConfiguration {
             return new S3ObjectStorage(client, presigner, properties);
         }
     }
+
+    @org.springframework.context.annotation.Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(com.aliyun.oss.OSS.class)
+    @ConditionalOnProperty(prefix = "shepherd.storage", name = "provider", havingValue = "aliyun")
+    static class AliyunConfiguration {
+
+        @Bean(destroyMethod = "shutdown")
+        @ConditionalOnMissingBean
+        com.aliyun.oss.OSS ossClient(StorageProperties properties) {
+            return new com.aliyun.oss.OSSClientBuilder()
+                    .build(properties.getEndpoint(), properties.getAccessKey(), properties.getSecretKey());
+        }
+
+        @Bean
+        @ConditionalOnMissingBean(ObjectStorage.class)
+        ObjectStorage aliyunObjectStorage(com.aliyun.oss.OSS oss, StorageProperties properties) {
+            return new com.shepherd.boot.storage.aliyun.AliyunObjectStorage(oss, properties);
+        }
+    }
 }
