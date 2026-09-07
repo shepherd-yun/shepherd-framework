@@ -1,5 +1,6 @@
 com.shepherd.boot.autoconfigure.ShepherdWebAutoConfiguration
 com.shepherd.boot.autoconfigure.ShepherdMybatisAutoConfiguration
+com.shepherd.boot.autoconfigure.ShepherdOpenApiAutoConfiguration
 com.shepherd.boot.autoconfigure.ShepherdRateLimitAutoConfiguration
 com.shepherd.boot.autoconfigure.ShepherdSecurityAutoConfiguration
 com.shepherd.boot.autoconfigure.ShepherdStorageAutoConfiguration
