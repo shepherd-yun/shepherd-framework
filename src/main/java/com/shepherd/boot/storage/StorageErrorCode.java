@@ -1,6 +1,6 @@
 package com.shepherd.boot.storage;
 
-import com.shepherd.boot.core.result.ErrorCode;
+import com.shepherd.boot.web.code.ErrorCode;
 
 /** 对象存储错误码，占用 Starter 保留段 10100~10199。 */
 public enum StorageErrorCode implements ErrorCode {

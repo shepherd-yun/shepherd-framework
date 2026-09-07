@@ -1,7 +1,7 @@
 package com.shepherd.boot.security;
 
-import com.shepherd.boot.core.result.CommonResultCode;
-import com.shepherd.boot.core.result.Result;
+import com.shepherd.boot.web.code.CommonResultCode;
+import com.shepherd.boot.web.vo.Result;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;

@@ -1,6 +1,6 @@
 package com.shepherd.boot.autoconfigure;
 
-import com.shepherd.boot.core.audit.AuditorProvider;
+import com.shepherd.boot.audit.AuditorProvider;
 import com.shepherd.boot.security.*;
 import io.jsonwebtoken.Jwts;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

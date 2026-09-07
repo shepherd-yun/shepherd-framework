@@ -1,7 +1,7 @@
 package com.shepherd.boot.security;
 
-import com.shepherd.boot.core.exception.BizException;
-import com.shepherd.boot.core.result.CommonResultCode;
+import com.shepherd.boot.web.exception.BizException;
+import com.shepherd.boot.web.code.CommonResultCode;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;

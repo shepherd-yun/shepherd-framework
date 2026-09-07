@@ -1,7 +1,7 @@
 package com.shepherd.boot.mybatis;
 
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
-import com.shepherd.boot.core.audit.AuditorProvider;
+import com.shepherd.boot.audit.AuditorProvider;
 import org.apache.ibatis.reflection.MetaObject;
 
 import java.time.LocalDateTime;

@@ -1,6 +1,6 @@
 package com.shepherd.boot.storage;
 
-import com.shepherd.boot.core.exception.BizException;
+import com.shepherd.boot.web.exception.BizException;
 
 /**
  * 继承 BizException，使存储异常自动落入统一 Result 契约。

@@ -3,7 +3,7 @@ package com.shepherd.boot.autoconfigure;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
-import com.shepherd.boot.core.audit.AuditorProvider;
+import com.shepherd.boot.audit.AuditorProvider;
 import com.shepherd.boot.mybatis.AuditMetaObjectHandler;
 import com.shepherd.boot.mybatis.ShepherdMybatisProperties;
 import org.springframework.beans.factory.ObjectProvider;
@@ -31,7 +31,7 @@ public class ShepherdMybatisAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(MetaObjectHandler.class)
     public AuditMetaObjectHandler auditMetaObjectHandler(ObjectProvider<AuditorProvider> auditorProvider) {
-        // 非 Web 应用下 ShepherdCoreAutoConfiguration 不生效，兜底 AuditorProvider 不存在，
+        // 非 Web 应用下 ShepherdWebAutoConfiguration 不生效，兜底 AuditorProvider 不存在，
         // 此时回落为「不填充操作者」，而不是让整个上下文启动失败。
         return new AuditMetaObjectHandler(
                 auditorProvider.getIfAvailable(() -> Optional::empty));

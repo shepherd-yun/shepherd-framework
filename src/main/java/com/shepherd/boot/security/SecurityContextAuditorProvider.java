@@ -1,6 +1,6 @@
 package com.shepherd.boot.security;
 
-import com.shepherd.boot.core.audit.AuditorProvider;
+import com.shepherd.boot.audit.AuditorProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
