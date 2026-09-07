@@ -17,15 +17,15 @@ class ResultTest {
     @Test
     void fail_from_errorcode_carries_code_and_message() {
         Result<Void> r = Result.fail(CommonResultCode.UNAUTHORIZED);
-        assertThat(r.getCode()).isEqualTo(10001);
+        assertThat(r.getCode()).isEqualTo(40100);
         assertThat(r.getMessage()).isEqualTo("未认证或登录已失效");
         assertThat(r.getData()).isNull();
     }
 
     @Test
-    void reserved_token_codes_keep_their_historical_values() {
-        // 前端 AUTH_ERROR_CODES = [10001, 20001, 20002] 硬依赖这些数值
-        assertThat(CommonResultCode.TOKEN_INVALID.getCode()).isEqualTo(20001);
-        assertThat(CommonResultCode.TOKEN_EXPIRED.getCode()).isEqualTo(20002);
+    void token_codes_sit_in_the_auth_expired_range() {
+        // 前端按区间 40100~40149 判定「凭证失效需登出」，这两个码必须落在其中
+        assertThat(CommonResultCode.TOKEN_INVALID.getCode()).isEqualTo(40101);
+        assertThat(CommonResultCode.TOKEN_EXPIRED.getCode()).isEqualTo(40102);
     }
 }

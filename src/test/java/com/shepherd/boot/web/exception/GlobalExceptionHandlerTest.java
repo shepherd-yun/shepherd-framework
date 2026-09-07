@@ -28,6 +28,6 @@ class GlobalExceptionHandlerTest {
 
         mvc.perform(get("/boom"))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.code").value(10003));
+           .andExpect(jsonPath("$.code").value(40400));
     }
 }
