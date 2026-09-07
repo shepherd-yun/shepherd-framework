@@ -1,6 +1,8 @@
 package com.shepherd.boot.autoconfigure;
 
 import com.shepherd.boot.audit.AuditorProvider;
+import com.shepherd.boot.web.ShepherdWebProperties;
+import com.shepherd.boot.web.advice.ResultBodyAdvice;
 import com.shepherd.boot.web.exception.GlobalExceptionHandler;
 import com.shepherd.boot.web.exception.SecurityExceptionHandler;
 import com.shepherd.boot.web.exception.ValidationExceptionHandler;
@@ -9,13 +11,16 @@ import jakarta.validation.ConstraintViolationException;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.security.access.AccessDeniedException;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.module.SimpleModule;
 import tools.jackson.databind.ser.std.ToStringSerializer;
 
@@ -23,12 +28,21 @@ import java.util.Optional;
 
 @AutoConfiguration(after = ShepherdSecurityAutoConfiguration.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+@EnableConfigurationProperties(ShepherdWebProperties.class)
 public class ShepherdWebAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
     public GlobalExceptionHandler globalExceptionHandler() {
         return new GlobalExceptionHandler();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "shepherd.web.wrap-result", name = "enabled",
+                           havingValue = "true", matchIfMissing = true)
+    public ResultBodyAdvice resultBodyAdvice(ShepherdWebProperties properties, JsonMapper jsonMapper) {
+        return new ResultBodyAdvice(properties.getWrapResult(), jsonMapper);
     }
 
     @Bean
