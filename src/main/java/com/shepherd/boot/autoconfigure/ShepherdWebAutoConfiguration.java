@@ -4,6 +4,7 @@ import com.shepherd.boot.audit.AuditorProvider;
 import com.shepherd.boot.web.ShepherdWebProperties;
 import com.shepherd.boot.web.advice.ResultBodyAdvice;
 import com.shepherd.boot.web.async.MdcTaskDecorator;
+import com.shepherd.boot.web.cors.ShepherdCorsConfigurationSource;
 import com.shepherd.boot.web.exception.GlobalExceptionHandler;
 import com.shepherd.boot.web.exception.SecurityExceptionHandler;
 import com.shepherd.boot.web.exception.ValidationExceptionHandler;
@@ -22,6 +23,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.cors.CorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.module.SimpleModule;
 import tools.jackson.databind.ser.std.ToStringSerializer;
@@ -57,6 +59,14 @@ public class ShepherdWebAutoConfiguration {
                            havingValue = "true", matchIfMissing = true)
     public MdcTaskDecorator mdcTaskDecorator() {
         return new MdcTaskDecorator();
+    }
+
+    /** 默认关闭：前端 dev 走 vite proxy 同源、生产多为同域部署。CORS 必须显式开启。 */
+    @Bean
+    @ConditionalOnMissingBean(CorsConfigurationSource.class)
+    @ConditionalOnProperty(prefix = "shepherd.web.cors", name = "enabled", havingValue = "true")
+    public CorsConfigurationSource shepherdCorsConfigurationSource(ShepherdWebProperties properties) {
+        return ShepherdCorsConfigurationSource.from(properties.getCors());
     }
 
     @Bean

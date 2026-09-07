@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskDecorator;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -56,5 +57,27 @@ class ShepherdWebAutoConfigurationTest {
                   assertThat(ctx).doesNotHaveBean(MdcTaskDecorator.class);
                   assertThat(ctx).hasSingleBean(TaskDecorator.class);
               });
+    }
+
+    @Test
+    void cors_source_is_absent_unless_explicitly_enabled() {
+        runner.run(ctx -> assertThat(ctx).doesNotHaveBean(CorsConfigurationSource.class));
+    }
+
+    @Test
+    void cors_source_is_registered_when_enabled() {
+        runner.withPropertyValues(
+                      "shepherd.web.cors.enabled=true",
+                      "shepherd.web.cors.allowed-origins=https://app.example.com")
+              .run(ctx -> assertThat(ctx).hasSingleBean(CorsConfigurationSource.class));
+    }
+
+    @Test
+    void cors_context_fails_to_start_on_wildcard_plus_credentials() {
+        runner.withPropertyValues(
+                      "shepherd.web.cors.enabled=true",
+                      "shepherd.web.cors.allowed-origins=*",
+                      "shepherd.web.cors.allow-credentials=true")
+              .run(ctx -> assertThat(ctx).hasFailed());
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -113,6 +114,9 @@ public class ShepherdSecurityAutoConfiguration {
                                                    RestAccessDeniedHandler accessDeniedHandler) throws Exception {
         String[] permitUrls = properties.getPermitUrls().toArray(String[]::new);
         http
+                // 让 Security 拾取容器里的 CorsConfigurationSource 并放行预检 OPTIONS。
+                // 没有这一行，shepherd.web.cors.* 在启用 Security 时完全不起作用。
+                .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
