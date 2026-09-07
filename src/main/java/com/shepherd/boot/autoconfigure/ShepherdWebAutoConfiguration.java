@@ -3,6 +3,7 @@ package com.shepherd.boot.autoconfigure;
 import com.shepherd.boot.audit.AuditorProvider;
 import com.shepherd.boot.web.ShepherdWebProperties;
 import com.shepherd.boot.web.advice.ResultBodyAdvice;
+import com.shepherd.boot.web.async.MdcTaskDecorator;
 import com.shepherd.boot.web.exception.GlobalExceptionHandler;
 import com.shepherd.boot.web.exception.SecurityExceptionHandler;
 import com.shepherd.boot.web.exception.ValidationExceptionHandler;
@@ -19,6 +20,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.core.task.TaskDecorator;
 import org.springframework.security.access.AccessDeniedException;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.module.SimpleModule;
@@ -43,6 +45,18 @@ public class ShepherdWebAutoConfiguration {
                            havingValue = "true", matchIfMissing = true)
     public ResultBodyAdvice resultBodyAdvice(ShepherdWebProperties properties, JsonMapper jsonMapper) {
         return new ResultBodyAdvice(properties.getWrapResult(), jsonMapper);
+    }
+
+    /**
+     * 必须 @ConditionalOnMissingBean(TaskDecorator.class)：Boot 用 ObjectProvider 取唯一
+     * TaskDecorator，上下文里存在两个时会静默跳过、透传失效且不报错。下游自定义时让位。
+     */
+    @Bean
+    @ConditionalOnMissingBean(TaskDecorator.class)
+    @ConditionalOnProperty(prefix = "shepherd.web.async-mdc", name = "enabled",
+                           havingValue = "true", matchIfMissing = true)
+    public MdcTaskDecorator mdcTaskDecorator() {
+        return new MdcTaskDecorator();
     }
 
     @Bean
