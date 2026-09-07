@@ -1,10 +1,8 @@
 package com.shepherd.boot.web.vo;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.Getter;
 
 import java.util.List;
-import java.util.function.Function;
 
 @Getter
 public class PageResult<T> {
@@ -22,8 +20,11 @@ public class PageResult<T> {
         this.records = records;
     }
 
-    public static <E, T> PageResult<T> of(IPage<E> page, Function<E, T> mapper) {
-        List<T> records = page.getRecords().stream().map(mapper).toList();
-        return new PageResult<>(page.getTotal(), page.getPages(), page.getCurrent(), page.getSize(), records);
+    /**
+     * 纯工厂：不依赖任何持久层类型。
+     * MyBatis-Plus 的 IPage 转换见 {@code com.shepherd.boot.mybatis.MpPages#toResult}。
+     */
+    public static <T> PageResult<T> of(long total, long pages, long pageNum, long pageSize, List<T> records) {
+        return new PageResult<>(total, pages, pageNum, pageSize, records);
     }
 }
