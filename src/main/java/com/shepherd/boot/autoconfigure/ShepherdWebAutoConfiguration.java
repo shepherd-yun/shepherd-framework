@@ -3,7 +3,9 @@ package com.shepherd.boot.autoconfigure;
 import com.shepherd.boot.audit.AuditorProvider;
 import com.shepherd.boot.web.exception.GlobalExceptionHandler;
 import com.shepherd.boot.web.exception.SecurityExceptionHandler;
+import com.shepherd.boot.web.exception.ValidationExceptionHandler;
 import com.shepherd.boot.web.filter.TraceIdFilter;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -64,6 +66,17 @@ public class ShepherdWebAutoConfiguration {
         @ConditionalOnMissingBean
         SecurityExceptionHandler securityExceptionHandler() {
             return new SecurityExceptionHandler();
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(ConstraintViolationException.class)
+    static class ValidationAwareAdviceConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean
+        ValidationExceptionHandler validationExceptionHandler() {
+            return new ValidationExceptionHandler();
         }
     }
 }
