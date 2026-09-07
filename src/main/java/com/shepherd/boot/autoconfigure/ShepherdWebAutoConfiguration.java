@@ -8,6 +8,7 @@ import com.shepherd.boot.web.cors.ShepherdCorsConfigurationSource;
 import com.shepherd.boot.web.exception.GlobalExceptionHandler;
 import com.shepherd.boot.web.exception.SecurityExceptionHandler;
 import com.shepherd.boot.web.exception.ValidationExceptionHandler;
+import com.shepherd.boot.web.filter.AccessLogFilter;
 import com.shepherd.boot.web.filter.TraceIdFilter;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -74,6 +75,18 @@ public class ShepherdWebAutoConfiguration {
     public FilterRegistrationBean<TraceIdFilter> traceIdFilterRegistration() {
         FilterRegistrationBean<TraceIdFilter> reg = new FilterRegistrationBean<>(new TraceIdFilter());
         reg.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        return reg;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "accessLogFilterRegistration")
+    @ConditionalOnProperty(prefix = "shepherd.web.access-log", name = "enabled", havingValue = "true")
+    public FilterRegistrationBean<AccessLogFilter> accessLogFilterRegistration(
+            ShepherdWebProperties properties) {
+        FilterRegistrationBean<AccessLogFilter> reg =
+                new FilterRegistrationBean<>(new AccessLogFilter(properties.getAccessLog()));
+        // 紧随 TraceIdFilter 之后，保证日志里带得上 traceId
+        reg.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
         return reg;
     }
 
