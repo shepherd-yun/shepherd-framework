@@ -34,6 +34,7 @@ Starter 内部把重型依赖标记为 `optional=true`，不会传递给下游�
 | 对象存储（S3 协议：AWS/R2/MinIO/阿里云 OSS 的 S3 兼容端点） | `software.amazon.awssdk:s3` + `software.amazon.awssdk:apache-client` |
 | 对象存储（阿里云 OSS 原生 SDK） | `com.aliyun.oss:aliyun-sdk-oss` |
 | `@RepeatSubmit` / `@RateLimit` | `spring-boot-starter-aspectj` + `spring-boot-starter-data-redis`（**两者缺任一则注解静默无效**） |
+| 单号生成（`SerialNoGenerator`） | `spring-boot-starter-data-redis` |
 | OpenAPI（Swagger UI、`Result` schema 修正） | `springdoc-openapi-starter-webmvc-ui` |
 
 版本均已在根 `pom.xml` 的 `dependencyManagement`（含 `software.amazon.awssdk:bom`）中收敛，下游无需再写 `<version>`。
@@ -105,6 +106,70 @@ Starter 内部把重型依赖标记为 `optional=true`，不会传递给下游�
 | `shepherd.storage.public-base-url` | 无 | 可选 CDN 域名；不填则 `publicUrl()` 回落到预签名 URL |
 | `shepherd.storage.presign-default-ttl` | `15m` | |
 | `shepherd.storage.path-style-access` / `chunked-encoding` / `checksum-compat-mode` | 无（取 preset 值） | 显式设置时覆盖 preset |
+
+## 单号生成
+
+注入 `SerialNoGenerator` 即可发号，单号形如 `BL202609110001` = 前缀 + 日期段 + 补零序号。
+计数器在 Redis，自增与首次设过期在同一段 Lua 脚本内完成。
+
+```java
+// 建议存成常量，避免同一单号在多处调用时写出不一致的规则
+private static final SerialNoRule ORDER = SerialNoRule.builder()
+        .prefix("BL")
+        .datePattern("yyyyMMdd")
+        .seqLength(4)
+        .build();
+
+String no = serialNo.next(ORDER);                 // BL202609110001
+List<String> nos = serialNo.nextBatch(ORDER, 3);  // 一次 Redis 往返取 3 个连续单号
+```
+
+简写：`SerialNoRule.of("BL", "yyyyMMdd", 4)`；无日期段 `SerialNoRule.of("BL", 4)`。
+
+### 规则字段
+
+| 字段 | 约束 | 说明 |
+|---|---|---|
+| `prefix` | 非空白 | 单号前缀，也是 Redis key 的一段 |
+| `datePattern` | 可为 null；非 null 时必须能格式化 `LocalDateTime` | 日期段格式，**它同时决定序号的重置粒度** |
+| `seqLength` | `1~18` | 序号补零位数 |
+
+规则非法一律在构造期抛 `IllegalArgumentException`（程序员错误，不占错误码）。
+
+### 日期段与重置粒度
+
+Redis 计数器 key 就是 `前缀 + 格式化结果`，日期段一变即换 key，序号自然从 1 开始：
+
+| `datePattern` | 单号示例 | 重置粒度 |
+|---|---|---|
+| `yyyyMMdd` | `BL202609110001` | 每日 |
+| `yyMM` | `BL26090001` | 每月 |
+| `yyyy` | `BL20260001` | 每年 |
+| `null` | `BL0001` | 永不重置（key 常驻，不设过期） |
+
+日期段按 **JVM 系统时区**计算（容器内时区问题请在部署侧设 `TZ`）。计数器 key 的 TTL 由 Starter
+自动推导，只会偏长不会偏短——偏短会让 key 中途过期、序号回到 1。
+
+### `shepherd.serial-no.*`
+
+| 属性 | 默认值 | 说明 |
+|---|---|---|
+| `shepherd.serial-no.enabled` | `true` | 关闭则不装配 `SerialNoGenerator` |
+| `shepherd.serial-no.key-prefix` | `shepherd:serialno:` | 多应用共享同一 Redis 时改它做隔离 |
+
+Redis 不在 classpath 或没有 `StringRedisTemplate` Bean 时**静默不装配**；下游自己声明
+`SerialNoGenerator` Bean 即完全接管。
+
+> **⚠️ 唯一性前提**：唯一性以 **Redis 持久化**为前提（建议 AOF `everysec`）。Redis 丢掉当天计数器
+> （重启无持久化 / `FLUSHDB` / 主从切换丢写）会让序号从 1 重数、发出**重复单号**。
+> **业务表必须对单号建唯一索引**——这是最后一道防线。
+
+> **⚠️ 序号连续 ≠ 无空洞**：`nextBatch` 没用完的号、以及「脚本已执行成功但响应丢失」后的重试，
+> 都会留下空洞。不要把单号序号当成业务计数。
+
+> **⚠️ 序号位数用尽会让单号变长**：`seqLength=4` 的第 10000 个单号是 `BL2026091110000`（自动加宽，
+> 同时打一条 WARN）。唯一性不破、业务不中断，但定长解析单号的下游会不适用——按业务量把
+> `seqLength` 给足。
 
 ## 错误码约定
 
