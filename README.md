@@ -1,6 +1,6 @@
 # shepherd-spring-boot-starter
 
-后端工程地基：统一响应契约与自动包装、全局异常、TraceId（含 @Async 透传）、CORS、访问日志、防重复提交与限流、MyBatis-Plus 审计填充、JWT 认证链、OpenAPI 自动配置、对象存储（S3 协议 + 阿里云 OSS 原生）。
+后端工程地基：统一响应契约与自动包装、全局异常、TraceId（含 @Async 透传）、CORS、访问日志、防重复提交与限流、MyBatis-Plus 审计填充、JWT 认证链、OpenAPI 自动配置、对象存储（S3 协议 + 阿里云 OSS 原生）、单号生成、Excel 导入导出。
 
 坐标：`com.shepherd:shepherd-spring-boot-starter:0.0.1`，基础包 `com.shepherd.boot`。
 
@@ -35,6 +35,7 @@ Starter 内部把重型依赖标记为 `optional=true`，不会传递给下游�
 | 对象存储（阿里云 OSS 原生 SDK） | `com.aliyun.oss:aliyun-sdk-oss` |
 | `@RepeatSubmit` / `@RateLimit` | `spring-boot-starter-aspectj` + `spring-boot-starter-data-redis`（**两者缺任一则注解静默无效**） |
 | 单号生成（`SerialNoGenerator`） | `spring-boot-starter-data-redis` |
+| Excel 导入导出（`ExcelResponses` / `ExcelImporter`） | `cn.idev.excel:fastexcel`；异步导入导出另需 `spring-boot-starter-data-redis` + 对象存储 + `spring-boot-starter-security` |
 | OpenAPI（Swagger UI、`Result` schema 修正） | `springdoc-openapi-starter-webmvc-ui` |
 
 版本均已在根 `pom.xml` 的 `dependencyManagement`（含 `software.amazon.awssdk:bom`）中收敛，下游无需再写 `<version>`。
@@ -107,6 +108,23 @@ Starter 内部把重型依赖标记为 `optional=true`，不会传递给下游�
 | `shepherd.storage.presign-default-ttl` | `15m` | |
 | `shepherd.storage.path-style-access` / `chunked-encoding` / `checksum-compat-mode` | 无（取 preset 值） | 显式设置时覆盖 preset |
 
+### `shepherd.excel.*`（需 `shepherd.excel.enabled=true` 才装配）
+
+| 属性 | 默认值 | 说明 |
+|---|---|---|
+| `shepherd.excel.enabled` | `false` | 显式开启才装配——会拖进 POI + xmlbeans 约 18 个 jar |
+| `shepherd.excel.max-rows` | `100000` | 导入行数硬上限，超出抛 `41301` |
+| `shepherd.excel.batch-size` | `500` | 分批回调大小 |
+| `shepherd.excel.async-threshold-rows` | `5000` | **仅作建议值暴露**，Starter 自身不据此分叉；同步/异步由业务方显式选 |
+| `shepherd.excel.inline-error-limit` | `200` | 错误行超过此数则落文件并截断 `errors` |
+| `shepherd.excel.export-key-prefix` | `excel/export/` | 异步导出结果的对象存储路径前缀 |
+| `shepherd.excel.error-key-prefix` | `excel/error/` | 错误行 Excel 的路径前缀 |
+| `shepherd.excel.template.default-rows` | `500` | 模板下拉生效行数。不对整列加有效性——会明显拖累文件体积与 Excel 打开速度 |
+| `shepherd.excel.template.hidden-sheet-name` | `__options` | 超长/含逗号选项的承载 sheet |
+| `shepherd.excel.task.ttl` | `24h` | 任务记录在 Redis 的存活时长 |
+| `shepherd.excel.task.endpoint-enabled` | `true` | 是否注册内置的任务查询端点 |
+| `shepherd.excel.task.endpoint-path` | `/excel/tasks` | 任务查询端点路径 |
+
 ## 单号生成
 
 注入 `SerialNoGenerator` 即可发号，单号形如 `BL202609110001` = 前缀 + 日期段 + 补零序号。
@@ -171,6 +189,132 @@ Redis 不在 classpath 或没有 `StringRedisTemplate` Bean 时**静默不装配
 > 同时打一条 WARN）。唯一性不破、业务不中断，但定长解析单号的下游会不适用——按业务量把
 > `seqLength` 给足。
 
+## Excel 导入导出
+
+> **三条必读限制**
+>
+> 1. **下拉框是填写体验，不是数据保证。** 用户从别处粘贴值时 Excel 不拦截，
+>    因此导入侧的逐行校验一条都不能省。
+> 2. **分批入库的事务边界是「每批一个事务」。** Starter 不在回调外层开事务，
+>    失败批次不回滚已提交的批次。要求「全量原子导入」的场景不适用本能力。
+> 3. **大导出一旦开始 flush 就无法回落成 JSON 错误。** `response.reset()` 只在
+>    尚未 flush 时有效——这是流式导出的固有代价。
+
+DTO 直接用 FastExcel 的 `@ExcelProperty`，Starter 不另造一套注解。
+
+同步与异步是两套独立 API，**Starter 不做自动分叉**：自动分叉会让同一接口有时返回
+xlsx 流、有时返回 `Result<taskId>` JSON，与「响应恒为 `Result`、HTTP 恒 200」的契约冲突。
+`shepherd.excel.async-threshold-rows` 只是给业务方判断用的建议值。
+
+### 同步导出
+
+```java
+@GetMapping("/users/export")
+public void export(HttpServletResponse response) {
+    ExcelResponses.write(response, "用户列表.xlsx", UserExportVo.class, service.listAll());
+}
+
+// 分页流式，内存恒定；pageFetcher 入参是 1-based 页码，返回空 List 即终止
+@GetMapping("/orders/export")
+public void exportOrders(HttpServletResponse response) {
+    ExcelResponses.writeStream(response, "订单.xlsx", OrderVo.class,
+            pageNo -> service.page(pageNo, 1000));
+}
+```
+
+导出方法签名是 `void` + `HttpServletResponse`，Spring 会置 `requestHandled=true`，
+根本不进入 `ResponseBodyAdvice`——因此**不需要**标 `@NoResultWrap`。
+该隐式行为由 `ExcelResponsesWrapBypassTest` 钉死，advice 日后改动会立刻变红。
+
+### 导入模板（运行时下拉）
+
+```java
+@GetMapping("/users/import-template")
+public void template(HttpServletResponse response) {
+    ExcelResponses.writeTemplate(response, "用户导入模板.xlsx", UserImportDto.class,
+            ExcelTemplateOptions.builder()
+                    .dropdown("deptName", deptService.listNames())   // 按 DTO 字段名，不是列索引
+                    .dropdown("status", List.of("启用", "停用"))
+                    .rows(500)                                       // 下拉生效行数
+                    .build());
+}
+```
+
+- **按字段名定位**：在 DTO 中间插一列时，列索引写法会静默错位；字段名写错则在生成模板时
+  立即抛 `40007`，不会产出一个下拉莫名失效的文件。
+- **约束类型自动切换**：选项拼接后 ≤255 字符且不含逗号时走内联约束；否则自动写入隐藏 sheet
+  并改用公式约束。这两个坑（超 255 字符 / 选项含逗号）的表现都是「文件能下载，Excel 打开报已损坏
+  或选项被拆开」，所以由 Starter 兜住，业务方无感。
+- `rows` 未设时回落到 `shepherd.excel.template.default-rows`；超出该行数的行仍可填写，只是没有下拉约束。
+  不对整列（1048575 行）加有效性——会明显拖累文件体积与 Excel 打开速度。
+
+### 同步导入
+
+```java
+ExcelImportResult<UserImportDto> r =
+        excelImporter.read(file, UserImportDto.class, batch -> service.saveBatch(batch));
+```
+
+逐行流程：FastExcel 解析成 DTO → jakarta validation 校验 → 通过的进批次缓冲，
+满 `batch-size` 触发一次 `Consumer<List<T>>`；不通过的记 `ExcelRowError(rowNum, column, message)`，
+**不进批次**。`rowNum` 是 1-based 的 Excel 行号（表头第 1 行，首条数据第 2 行），
+直接对应用户在 Excel 里看到的行号。
+
+回调自身抛异常时，**该批全部计入失败并记录原因，解析继续**——单批写库失败不该让用户
+丢掉整个文件的解析结果。
+
+```java
+record ExcelImportResult<T>(
+        long total,                        // 解析到的数据行数（不含表头）
+        long succeeded,
+        long failed,
+        List<ExcelRowError> errors,        // 超过 inline-error-limit 时截断
+        boolean errorsTruncated,
+        @Nullable String errorFileKey)     // 错误行 Excel 的 object key（同步导入恒为 null）
+```
+
+不提供「一行代码把整表读成 List」的便捷方法——那是 OOM 诱饵。
+
+### 异步导入导出
+
+```java
+String taskId = asyncExcel.submitExport(ExcelExportRequest.<OrderVo>builder()
+        .fileName("订单.xlsx").head(OrderVo.class)
+        .pageFetcher(pageNo -> service.page(pageNo, 1000)).build(), currentUserId());
+
+String taskId = asyncExcel.submitImport(file, UserImportDto.class,
+        batch -> service.saveBatch(batch), currentUserId());
+
+// 前端轮询：GET /excel/tasks/{taskId} → Result<ExcelTaskVo>
+```
+
+`ExcelTaskVo` 含 `status`（`PENDING` / `RUNNING` / `SUCCEEDED` / `FAILED`）、`processed` / `total`
+进度，以及完成后的 `downloadUrl`——导出任务指向结果文件，导入任务指向错误行 Excel
+（无错误行时为 `null`），形成「下载错误行 → 改完重传」的闭环。
+`ownerId` 与 `resultKey` 刻意不在 VO 里：前者泄露他人标识，后者泄露存储布局。
+
+`submitImport` 在返回前就把 `MultipartFile` 的内容读出来——请求结束后临时文件会被清理，
+异步线程再读就是空的。
+
+任务查询按 `ownerId`（提交时的 Spring Security principal name）判定归属，
+**不匹配时返回 `40402 任务不存在` 而非 403**：403 等于确认「该 id 存在但不属于你」，
+给了枚举探测的确认信号。
+
+执行提交给 Boot 的 `applicationTaskExecutor`，其上挂着 `MdcTaskDecorator`，
+因此异步任务的日志带得上 traceId。
+
+### 异步的前置与 fail-fast
+
+异步能力以「容器中有 `StringRedisTemplate`」为启用信号——任务态存 Redis，没有 Redis 就谈不上异步。
+启用后缺 `ObjectStorage`（承载结果文件）或 `SerialNoGenerator`（发任务号）会在**启动时 fail-fast
+并指明缺什么**，不同于 `@RepeatSubmit` 缺依赖时的静默失效。只用同步导入导出则不受影响。
+
+任务记录存 Redis（key `shepherd:excel:task:{id}`，TTL 取 `shepherd.excel.task.ttl`），
+到期即清理——Redis 丢数时重导一次即可。要持久化就声明自己的 `ExcelTaskStore` Bean 覆盖默认实现。
+
+内置的任务查询端点是 Starter 首个内置 controller，属基础设施端点、不含业务模型；
+设 `shepherd.excel.task.endpoint-enabled=false` 可完全关闭，由下游自行实现。
+
 ## 错误码约定
 
 编码规则：`<3 位 HTTP 状态><2 位序号>`，共 5 位；成功码恒为 `0`。
@@ -192,18 +336,26 @@ Redis 不在 classpath 或没有 `StringRedisTemplate` Bean 时**静默不装配
 | `40001` | 请求体格式错误 | Starter |
 | `40002` | 请求参数类型不匹配 | Starter |
 | `40003` | 对象存储 key 非法 | Starter |
+| `40004` | Excel 表头与模板不匹配 | Starter |
+| `40005` | 不支持的文件格式（非 xlsx/xls/csv） | Starter |
+| `40006` | 文件为空或无数据行 | Starter |
+| `40007` | 模板下拉指定的字段名在 DTO 中不存在 | Starter |
 | `40100` | 未认证或登录已失效 | Starter |
 | `40101` | 登录凭证无效 | Starter |
 | `40102` | 登录已过期 | Starter |
 | `40300` | 无权限访问 | Starter |
 | `40400` | 资源不存在 | Starter |
 | `40401` | 对象不存在 | Starter |
+| `40402` | 导入/导出任务不存在（归属不匹配复用此码，不返回 403） | Starter |
 | `40500` | 请求方法不支持 | Starter |
 | `40900` | 请勿重复提交 | Starter |
 | `41300` | 上传文件过大 | Starter |
+| `41301` | 导入行数超出 `shepherd.excel.max-rows` | Starter |
 | `42900` | 请求过于频繁 | Starter |
 | `50000` | 系统繁忙，请稍后再试 | Starter |
 | `50001~50004` | 存储上传 / 下载 / 删除 / 预签名失败 | Starter |
+| `50005` | Excel 解析失败 | Starter |
+| `50006` | Excel 生成失败 | Starter |
 | 各段 `50~99` | 下游业务自定义 | 业务 |
 
 ## 自动包装
