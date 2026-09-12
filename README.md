@@ -2,27 +2,55 @@
 
 后端工程地基：统一响应契约与自动包装、全局异常、TraceId（含 @Async 透传）、CORS、访问日志、防重复提交与限流、MyBatis-Plus 审计填充、JWT 认证链、OpenAPI 自动配置、对象存储（S3 协议 + 阿里云 OSS 原生）、单号生成、Excel 导入导出。
 
-坐标：`com.shepherd:shepherd-spring-boot-starter:0.0.1`，基础包 `com.shepherd.boot`。
+坐标：`com.shepherd:shepherd-spring-boot-starter:0.1.0-SNAPSHOT`，基础包 `com.shepherd.boot`。发布在 [GitHub Packages](https://github.com/shepherd-yun/shepherd-spring-boot-starter/packages)。
 
 不含用户体系（登录/角色/租户等业务模型留在使用方项目里）；引入后写几行 `shepherd.*` 配置即具备基础能力，直接开发业务逻辑。
 
 ## 使用方式
 
-先在仓库根目录安装到本地 Maven 仓库（首次使用，或每次改动 Starter 源码后都需要）：
+### 1. 配置 GitHub Packages 凭证
 
-```bash
-mvn -DskipTests install -P home
-```
-
-然后在下游模块的 `pom.xml` 中加依赖：
+GitHub Packages 的 Maven 仓库**读取也要求认证**（即便包是公开的）。在 `~/.m2/settings.xml` 里加一个 server（token 建议走环境变量，不要写死进文件）：
 
 ```xml
+<servers>
+  <server>
+    <id>github</id>
+    <username>你的 GitHub 用户名</username>
+    <password>${env.GITHUB_TOKEN}</password>
+  </server>
+</servers>
+```
+
+token 需要 `read:packages` 权限（发布方另需 `write:packages`）。用 gh CLI 最省事：
+
+```bash
+gh auth refresh -h github.com -s read:packages   # 发布方再加 -s write:packages
+export GITHUB_TOKEN=$(gh auth token)
+```
+
+### 2. 在下游项目声明仓库与依赖
+
+```xml
+<repositories>
+  <repository>
+    <id>github</id>
+    <url>https://maven.pkg.github.com/shepherd-yun/shepherd-spring-boot-starter</url>
+    <releases><enabled>true</enabled></releases>
+    <snapshots><enabled>true</enabled></snapshots>
+  </repository>
+</repositories>
+
 <dependency>
-    <groupId>com.shepherd</groupId>
-    <artifactId>shepherd-spring-boot-starter</artifactId>
-    <version>0.0.1</version>
+  <groupId>com.shepherd</groupId>
+  <artifactId>shepherd-spring-boot-starter</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
+
+`<repository>` 的 `id` 必须与 settings.xml 里 server 的 `id` 一致（都叫 `github`），否则 Maven 拿不到凭证。
+
+### 3. 按需补齐能力依赖
 
 Starter 内部把重型依赖标记为 `optional=true`，不会传递给下游；按需要的能力自行在下游 pom 中声明：
 
@@ -38,7 +66,20 @@ Starter 内部把重型依赖标记为 `optional=true`，不会传递给下游�
 | Excel 导入导出（`ExcelResponses` / `ExcelImporter`） | `cn.idev.excel:fastexcel`；异步导入导出另需 `spring-boot-starter-data-redis` + 对象存储 + `spring-boot-starter-security` |
 | OpenAPI（Swagger UI、`Result` schema 修正） | `springdoc-openapi-starter-webmvc-ui` |
 
-版本均已在根 `pom.xml` 的 `dependencyManagement`（含 `software.amazon.awssdk:bom`）中收敛，下游无需再写 `<version>`。
+`optional` 依赖的版本**不会**随 Starter 传递给下游（Maven 的 `dependencyManagement` 不参与传递），下游需自行管理版本。本 Starter 在下列组合下构建并通过全部单测：
+
+| 依赖 | 验证版本 |
+|---|---|
+| Spring Boot | 4.0.7 |
+| Java | 21 |
+| MyBatis-Plus | 3.5.16 |
+| jjwt | 0.12.6 |
+| springdoc-openapi | 3.0.2 |
+| AWS SDK v2 | 2.46.7 |
+| aliyun-sdk-oss | 3.18.5 |
+| FastExcel | 1.3.0 |
+
+下游若同样以 `spring-boot-starter-parent` 为 parent，Spring 自家依赖的版本会自动对齐，只有上表中非 Spring 的几项需要显式写 `<version>`。
 
 ## 配置项
 
@@ -422,3 +463,25 @@ Starter 的每个 Bean 均挂 `@ConditionalOnMissingBean`：下游声明同类�
 - **Starter 的 `TaskDecorator` 标了 `@ConditionalOnMissingBean(TaskDecorator.class)`**：下游一旦自定义 `TaskDecorator`，Starter 让位，traceId 透传需下游自行实现。这是必须的——Boot 用 `ObjectProvider` 取唯一 `TaskDecorator`，两个并存会被**静默跳过**，透传双双失效且无任何报错。
 - **`@RepeatSubmit` / `@RateLimit` 需要 AOP 与 Redis 同时在场**（`spring-boot-starter-aspectj` + `spring-boot-starter-data-redis`）。缺任一则两个 Aspect 静默不装配——它们是可选增强能力，没有 fail-fast 的理由，但后果是注解写了却不生效，需自行确认依赖到位。
 - 明确不做：分片上传（由预签名直传绕过）、桶管理、图片处理（厂商特有能力，进 SPI 会撑爆接口）；Starter 不提供上传 REST 接口——鉴权、限流、落库需求各项目不同，那是业务方的事。
+
+## 开发与发布
+
+```bash
+mvn test                     # 全量单测（214 个），验收门槛
+mvn -DskipTests install      # 装进本地仓库，供本机下游项目联调
+mvn deploy -P release        # 发布到 GitHub Packages（附带 sources + javadoc jar）
+```
+
+发布前置：`export GITHUB_TOKEN=$(gh auth token)`，且该 token 含 `write:packages`（`gh auth refresh -h github.com -s write:packages`）。
+
+也可以打 tag 让 CI 发布（`.github/workflows/publish.yml`，用 Actions 内置的 `GITHUB_TOKEN`，无需本地凭证）：
+
+```bash
+mvn versions:set -DnewVersion=0.1.0 && mvn versions:commit
+git commit -am "release: 0.1.0" && git tag v0.1.0 && git push --follow-tags
+```
+
+**GitHub Packages 不允许覆盖同名 release 版本**（SNAPSHOT 可以反复推）。发布正式版后若要改动，必须递增版本号。
+
+本机环境注意（与 yun 项目同）：mise 把全局 `java` 钉在 zulu-8，非交互 shell 里需显式指定
+`JAVA_HOME=/Users/yun/.local/share/mise/installs/java/zulu-21.50.19.0 mvn ...`；用本机 Maven 配置的阿里云镜像时带上 `-P home`。
