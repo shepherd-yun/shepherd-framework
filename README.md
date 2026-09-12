@@ -83,6 +83,8 @@ Starter 内部把重型依赖标记为 `optional=true`，不会传递给下游�
 
 ## 配置项
 
+jar 内带 `META-INF/spring-configuration-metadata.json`（由 `spring-boot-configuration-processor` 编译期生成），下游在 `application.yaml` 里写 `shepherd.*` 时 IDE 有补全、默认值与类型校验，字段上的 javadoc 会作为提示文案显示。
+
 ### `shepherd.web.*`（需 `spring-boot-starter-webmvc` 在 classpath）
 
 **所有 `List` 类型的绑定都是整体替换而非追加**——下游一旦在 yaml 中写了某一项，必须把需要保留的默认值一并抄进去（与 `permit-urls` 同理）。
