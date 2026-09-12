@@ -5,3 +5,4 @@ com.shepherd.boot.autoconfigure.ShepherdRateLimitAutoConfiguration
 com.shepherd.boot.autoconfigure.ShepherdSecurityAutoConfiguration
 com.shepherd.boot.autoconfigure.ShepherdStorageAutoConfiguration
 com.shepherd.boot.autoconfigure.ShepherdSerialNoAutoConfiguration
+com.shepherd.boot.autoconfigure.ShepherdExcelAutoConfiguration
