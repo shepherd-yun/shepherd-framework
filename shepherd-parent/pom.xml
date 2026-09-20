@@ -28,7 +28,14 @@
             <dependency>
                 <groupId>com.shepherd</groupId>
                 <artifactId>shepherd-dependencies</artifactId>
-                <version>${project.version}</version>
+                <!-- 必须写字面量版本，不能用 ${project.version}。
+                     本段会被下游业务项目通过继承拿到，而继承时的属性插值发生在
+                     「子 pom 的上下文」——${project.version} 会解析成业务项目自己的版本
+                     （如 backend 的 0.0.1），导致 Maven 去找不存在的
+                     com.shepherd:shepherd-dependencies:pom:0.0.1。
+                     framework 自身的 reactor 里所有模块同版本，会掩盖这个 bug。
+                     升版本时这里和上面的 <version> 要一起改。 -->
+                <version>0.2.0-SNAPSHOT</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
