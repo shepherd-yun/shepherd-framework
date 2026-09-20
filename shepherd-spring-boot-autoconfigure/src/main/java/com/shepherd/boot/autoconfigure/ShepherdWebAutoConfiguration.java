@@ -2,12 +2,12 @@ package com.shepherd.boot.autoconfigure;
 
 import com.shepherd.boot.audit.AuditorProvider;
 import com.shepherd.boot.web.ShepherdWebProperties;
+import com.shepherd.boot.web.advice.GlobalExceptionHandler;
 import com.shepherd.boot.web.advice.ResultBodyAdvice;
+import com.shepherd.boot.web.advice.SecurityExceptionHandler;
+import com.shepherd.boot.web.advice.ValidationExceptionHandler;
 import com.shepherd.boot.web.async.MdcTaskDecorator;
 import com.shepherd.boot.web.cors.ShepherdCorsConfigurationSource;
-import com.shepherd.boot.web.exception.GlobalExceptionHandler;
-import com.shepherd.boot.web.exception.SecurityExceptionHandler;
-import com.shepherd.boot.web.exception.ValidationExceptionHandler;
 import com.shepherd.boot.web.filter.AccessLogFilter;
 import com.shepherd.boot.web.filter.TraceIdFilter;
 import jakarta.validation.ConstraintViolationException;

@@ -1,4 +1,4 @@
-package com.shepherd.boot.web.exception;
+package com.shepherd.boot.web.advice;
 
 import com.shepherd.boot.web.code.CommonResultCode;
 import com.shepherd.boot.web.vo.Result;

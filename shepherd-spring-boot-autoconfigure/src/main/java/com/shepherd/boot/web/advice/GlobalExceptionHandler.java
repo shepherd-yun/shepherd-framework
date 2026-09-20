@@ -1,6 +1,7 @@
-package com.shepherd.boot.web.exception;
+package com.shepherd.boot.web.advice;
 
 import com.shepherd.boot.web.code.CommonResultCode;
+import com.shepherd.boot.web.exception.BizException;
 import com.shepherd.boot.web.vo.Result;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;

@@ -1,6 +1,7 @@
-package com.shepherd.boot.web.exception;
+package com.shepherd.boot.web.advice;
 
 import com.shepherd.boot.web.code.CommonResultCode;
+import com.shepherd.boot.web.exception.BizException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
