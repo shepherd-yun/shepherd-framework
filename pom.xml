@@ -46,6 +46,7 @@
     <modules>
         <module>shepherd-dependencies</module>
         <module>shepherd-parent</module>
+        <module>shepherd-common</module>
         <module>shepherd-spring-boot-autoconfigure</module>
     </modules>
 
