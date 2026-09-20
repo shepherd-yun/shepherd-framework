@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.shepherd</groupId>
+        <artifactId>shepherd-parent</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
+        <relativePath>../shepherd-parent</relativePath>
+    </parent>
+
+    <artifactId>shepherd-spring-boot-starter-web</artifactId>
+    <packaging>pom</packaging>
+    <name>shepherd-spring-boot-starter-web</name>
+    <description>Web 地基：统一响应、全局异常、TraceId、CORS、访问日志、限流与防重复提交、OpenAPI</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.shepherd</groupId>
+            <artifactId>shepherd-spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
+        </dependency>
+        <!-- 限流（RedisRateLimiter）与防重复提交（RedisRepeatSubmitGuard）的硬前提：
+             缺 Redis 时这两项是静默不装配，注解写了不生效且无任何报错。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+    </dependencies>
+</project>

@@ -49,6 +49,11 @@
         <module>shepherd-common</module>
         <module>shepherd-common-mybatis</module>
         <module>shepherd-spring-boot-autoconfigure</module>
+        <module>shepherd-spring-boot-starter-web</module>
+        <module>shepherd-spring-boot-starter-mybatis</module>
+        <module>shepherd-spring-boot-starter-security</module>
+        <module>shepherd-spring-boot-starter-oss</module>
+        <module>shepherd-spring-boot-starter-excel</module>
     </modules>
 
     <distributionManagement>

@@ -12,7 +12,7 @@
 
     <artifactId>shepherd-common-mybatis</artifactId>
     <name>shepherd-common-mybatis</name>
-    <description>MyBatis-Plus 侧的公共类型：BaseEntity、分页转换、审计填充</description>
+    <description>MyBatis-Plus 侧的公共类型：BaseEntity、分页转换、审计填充与 shepherd.mybatis 配置</description>
 
     <dependencies>
         <dependency>
@@ -23,6 +23,8 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
         </dependency>
+        <!-- 本模块不依赖 Spring 容器（指不需要运行中的 context），
+             但 ShepherdMybatisProperties 的 @ConfigurationProperties 在编译期需要它，见设计文档 §4.2。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot</artifactId>
