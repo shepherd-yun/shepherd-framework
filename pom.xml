@@ -47,6 +47,7 @@
         <module>shepherd-dependencies</module>
         <module>shepherd-parent</module>
         <module>shepherd-common</module>
+        <module>shepherd-common-mybatis</module>
         <module>shepherd-spring-boot-autoconfigure</module>
     </modules>
 

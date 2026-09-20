@@ -55,6 +55,11 @@
             <optional>true</optional>
         </dependency>
         <dependency>
+            <groupId>com.shepherd</groupId>
+            <artifactId>shepherd-common-mybatis</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
             <optional>true</optional>
