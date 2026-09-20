@@ -11,7 +11,6 @@
     </parent>
 
     <artifactId>shepherd-spring-boot-starter-oss</artifactId>
-    <packaging>pom</packaging>
     <name>shepherd-spring-boot-starter-oss</name>
     <description>对象存储：S3 兼容实现（MinIO / R2 / S3 / 阿里云 S3 兼容模式）</description>
 

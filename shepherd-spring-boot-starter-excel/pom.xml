@@ -11,7 +11,6 @@
     </parent>
 
     <artifactId>shepherd-spring-boot-starter-excel</artifactId>
-    <packaging>pom</packaging>
     <name>shepherd-spring-boot-starter-excel</name>
     <description>Excel 导入导出：同步导出、下拉模板、分批导入、异步任务</description>
 

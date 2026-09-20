@@ -11,7 +11,6 @@
     </parent>
 
     <artifactId>shepherd-spring-boot-starter-security</artifactId>
-    <packaging>pom</packaging>
     <name>shepherd-spring-boot-starter-security</name>
     <description>JWT 认证链、登录态存储、REST 风格的认证/鉴权失败响应</description>
 
