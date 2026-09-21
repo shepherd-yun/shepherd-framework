@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.shepherd</groupId>
+        <artifactId>shepherd-parent</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
+        <relativePath>../shepherd-parent</relativePath>
+    </parent>
+
+    <artifactId>shepherd-spring-boot-starter-mybatis</artifactId>
+    <name>shepherd-spring-boot-starter-mybatis</name>
+    <description>MyBatis-Plus 地基：审计字段自动填充、分页插件、MpPages 转换</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.shepherd</groupId>
+            <artifactId>shepherd-spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.shepherd</groupId>
+            <artifactId>shepherd-common-mybatis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+        </dependency>
+        <!-- 不可省：自 3.5.9 起 PaginationInnerInterceptor 被拆到本工件 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
+    </dependencies>
+</project>

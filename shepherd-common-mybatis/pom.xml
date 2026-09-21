@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.shepherd</groupId>
+        <artifactId>shepherd-parent</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
+        <relativePath>../shepherd-parent</relativePath>
+    </parent>
+
+    <artifactId>shepherd-common-mybatis</artifactId>
+    <name>shepherd-common-mybatis</name>
+    <description>MyBatis-Plus 侧的公共类型：BaseEntity、分页转换、审计填充与 shepherd.mybatis 配置</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.shepherd</groupId>
+            <artifactId>shepherd-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+        </dependency>
+        <!-- 本模块不依赖 Spring 容器（指不需要运行中的 context），
+             但 ShepherdMybatisProperties 的 @ConfigurationProperties 在编译期需要它，见设计文档 §4.2。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

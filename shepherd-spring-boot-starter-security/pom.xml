@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.shepherd</groupId>
+        <artifactId>shepherd-parent</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
+        <relativePath>../shepherd-parent</relativePath>
+    </parent>
+
+    <artifactId>shepherd-spring-boot-starter-security</artifactId>
+    <name>shepherd-spring-boot-starter-security</name>
+    <description>JWT 认证链、登录态存储、REST 风格的认证/鉴权失败响应</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.shepherd</groupId>
+            <artifactId>shepherd-spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <!-- LoginTokenStore 缺 Redis 会 fail-fast（不做 no-op 降级，那会让登出与踢人静默失效） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+</project>

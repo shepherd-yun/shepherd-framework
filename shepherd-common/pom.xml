@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.shepherd</groupId>
+        <artifactId>shepherd-parent</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
+        <relativePath>../shepherd-parent</relativePath>
+    </parent>
+
+    <artifactId>shepherd-common</artifactId>
+    <name>shepherd-common</name>
+    <description>响应契约、错误码与审计 SPI，不依赖 Spring 容器</description>
+
+    <!-- 依赖白名单：jspecify / slf4j-api / lombok(optional)。
+         新增任何一项都要先确认它满足 common 的两条准入规则，见设计文档 §4.1。 -->
+    <dependencies>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Result 从 MDC 取 traceId -->
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
