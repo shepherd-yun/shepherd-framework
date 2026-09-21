@@ -17,7 +17,7 @@
 
     <name>shepherd-framework</name>
     <description>后端工程地基：统一响应契约、全局异常、TraceId、MyBatis-Plus 审计、JWT 认证、对象存储、单号生成、Excel 导入导出</description>
-    <url>https://github.com/shepherd-yun/shepherd-spring-boot-starter</url>
+    <url>https://github.com/shepherd-yun/shepherd-framework</url>
 
     <licenses>
         <license>
@@ -36,9 +36,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/shepherd-yun/shepherd-spring-boot-starter.git</connection>
-        <developerConnection>scm:git:git@github.com:shepherd-yun/shepherd-spring-boot-starter.git</developerConnection>
-        <url>https://github.com/shepherd-yun/shepherd-spring-boot-starter</url>
+        <connection>scm:git:https://github.com/shepherd-yun/shepherd-framework.git</connection>
+        <developerConnection>scm:git:git@github.com:shepherd-yun/shepherd-framework.git</developerConnection>
+        <url>https://github.com/shepherd-yun/shepherd-framework</url>
         <tag>HEAD</tag>
     </scm>
 
@@ -60,12 +60,12 @@
         <repository>
             <id>github</id>
             <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/shepherd-yun/shepherd-spring-boot-starter</url>
+            <url>https://maven.pkg.github.com/shepherd-yun/shepherd-framework</url>
         </repository>
         <snapshotRepository>
             <id>github</id>
             <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/shepherd-yun/shepherd-spring-boot-starter</url>
+            <url>https://maven.pkg.github.com/shepherd-yun/shepherd-framework</url>
         </snapshotRepository>
     </distributionManagement>
 </project>
