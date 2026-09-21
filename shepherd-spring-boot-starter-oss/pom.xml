@@ -11,6 +11,8 @@
     </parent>
 
     <artifactId>shepherd-spring-boot-starter-oss</artifactId>
+    <!-- 无源码的依赖聚合器。不声明 packaging（即 jar）：packaging=pom 只产出 .pom，
+         下游一条普通 <dependency> 解析不到 jar；Spring Boot 官方 starter 同此。 -->
     <name>shepherd-spring-boot-starter-oss</name>
     <description>对象存储：S3 兼容实现（MinIO / R2 / S3 / 阿里云 S3 兼容模式）</description>
 

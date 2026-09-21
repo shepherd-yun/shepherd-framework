@@ -11,6 +11,8 @@
     </parent>
 
     <artifactId>shepherd-spring-boot-starter-web</artifactId>
+    <!-- 无源码的依赖聚合器。不声明 packaging（即 jar）：packaging=pom 只产出 .pom，
+         下游一条普通 <dependency> 解析不到 jar；Spring Boot 官方 starter 同此。 -->
     <name>shepherd-spring-boot-starter-web</name>
     <description>Web 地基：统一响应、全局异常、TraceId、CORS、访问日志、限流与防重复提交、OpenAPI</description>
 

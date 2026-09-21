@@ -4,9 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目性质
 
-单模块 Spring Boot Starter（`com.shepherd:shepherd-spring-boot-starter`，基础包 `com.shepherd.boot`），**没有可运行的应用**——没有 `@SpringBootApplication`、没有 `application.yaml`，一切验证都靠单测。产物发布到 GitHub Packages 供下游业务项目引用。
+多模块 Maven 工程（root 聚合 pom + 10 个子模块），基础包 `com.shepherd.boot`，**没有可运行的应用**——没有 `@SpringBootApplication`、没有 `application.yaml`，一切验证都靠单测。11 个制品（10 子模块 + root 聚合 pom）发布到 GitHub Packages 供下游业务项目引用。
 
-面向下游使用者的完整文档（配置项表、错误码表、能力矩阵、运维前提、已知取舍）在 `README.md`，改动行为时**必须同步更新 README 对应小节**。本文件只讲在本仓库里干活需要知道的事。
+| 子模块 | 职责 |
+|---|---|
+| `shepherd-dependencies` | BOM，版本清单，甲方已有自家 parent 时 import |
+| `shepherd-parent` | 业务项目继承的父 pom：import 上面的 BOM + 构建约定（编译器/Lombok/MapStruct 注解处理器顺序、source jar、release profile） |
+| `shepherd-common` | 零外部依赖的契约类型（`Result`/`PageResult`/`BizException`/错误码基类/审计 SPI），Java/JVM 环境都能编译 |
+| `shepherd-common-mybatis` | 依赖 MyBatis-Plus 的公共类型（`BaseEntity`/`MpPages`/审计填充），从 `shepherd-common` 再细分出来是因为它需要 MyBatis-Plus 这个外部依赖 |
+| `shepherd-spring-boot-autoconfigure` | 全部 `@AutoConfiguration` 实现与需要 Spring 容器的业务代码（web/security/mybatis/storage/excel/serial-no/openapi/rate-limit），依赖全走 `optional=true`，由薄 starter 聚合传递 |
+| `shepherd-spring-boot-starter-web` | 薄 starter：Web 地基（含限流/防重，硬依赖 Redis） |
+| `shepherd-spring-boot-starter-mybatis` | 薄 starter：MyBatis-Plus 地基 |
+| `shepherd-spring-boot-starter-security` | 薄 starter：JWT 认证链（硬依赖 Redis） |
+| `shepherd-spring-boot-starter-oss` | 薄 starter：对象存储（S3 兼容） |
+| `shepherd-spring-boot-starter-excel` | 薄 starter：Excel 导入导出 |
+
+面向下游使用者的完整文档（制品矩阵、接入方式、配置项表、错误码表、运维前提、已知取舍）在 `README.md`，改动行为时**必须同步更新 README 对应小节**。本文件只讲在本仓库里干活需要知道的事。
 
 ## 常用命令
 
@@ -32,9 +45,16 @@ mvn -P home deploy -P release             # 发布到 GitHub Packages（附 sour
 
 ## 依赖策略
 
-除 `spring-boot-autoconfigure` 与 `jspecify` 外，**pom 里所有依赖都是 `optional=true`**，不传递给下游；下游按需自行声明（矩阵见 README「按需补齐能力依赖」）。`dependencyManagement` 同样不随 jar 传递，所以下游要自己管版本——这是有意的设计，改动时别顺手把 optional 去掉。
+`shepherd-spring-boot-autoconfigure` 模块内部：除 `spring-boot-autoconfigure` 与 `jspecify` 外，**pom 里所有依赖都是 `optional=true`**，不传递给下游；下游需要哪种能力，靠引入对应的薄 starter 来补齐（starter 里把该能力所需的依赖声明成普通非 optional 依赖）。改动时别顺手把 optional 去掉——一旦去掉，所有下游都会被迫带上该依赖，薄 starter 分能力引入的意义就没了。
 
 两处 `commons-logging` 排除（`aliyun-sdk-oss`、`apache-client`）是**版本收敛**而非类冲突，pom 里有注释说明，不要删。
+
+**新类放 `shepherd-common` 还是 `shepherd-spring-boot-autoconfigure`**，按这两条准入规则判断，两条都满足才进 `common`（`common-mybatis` 同理，只是多容忍 MyBatis-Plus 这一个外部依赖）：
+
+1. **零外部依赖**（或运行环境本身就有：JDK、JSpecify）——一旦引入 Spring/Redis/AWS SDK 等任何三方库，说明它是「能力实现」而非「契约类型」，留 autoconfigure。
+2. **属于响应契约、错误码或审计 SPI 这条主线**——即下游业务代码会直接 `import` 来写自己的 controller/service 返回值、异常处理、审计扩展点的类型，而不是只在 Starter 内部装配时才用到的实现细节。
+
+反过来，**「能力类型」——需要 Spring 容器装配、依赖某个具体三方 SDK、或只服务于某个 `@AutoConfiguration` 内部逻辑的类——留在 `shepherd-spring-boot-autoconfigure`**，不因为「感觉是公共的」就下沉到 common。判断标准是「下游业务代码会不会直接引用这个类型来写业务逻辑」，不是「这个类有没有被多处用到」。
 
 ## 自动配置架构
 
@@ -84,11 +104,18 @@ mvn -P home deploy -P release             # 发布到 GitHub Packages（附 sour
 
 ## 新增一项能力时的清单
 
+0. **先判断新类放 `shepherd-common`（或 `shepherd-common-mybatis`）还是 `shepherd-spring-boot-autoconfigure`**——按上面「依赖策略」的两条准入规则；大多数新能力的实现类会落在 autoconfigure，只有真正的契约类型（下游会直接 import 的 DTO/异常/SPI）才下沉到 common。
 1. 在 `com.shepherd.boot.<能力>` 下建包，补 `package-info.java` 的 `@NullMarked`。
-2. 重依赖加进 pom 并标 `optional=true`，版本收进 `dependencyManagement`。
+2. 重依赖加进 `shepherd-spring-boot-autoconfigure` 的 pom 并标 `optional=true`，版本收进 `shepherd-dependencies` 的 `dependencyManagement`。
 3. 写 `Shepherd<能力>AutoConfiguration`，每个 Bean 挂 `@ConditionalOnMissingBean`，按上面三种处置选一种应对缺依赖。
 4. 注册进 `AutoConfiguration.imports`。
 5. 配置类用 `@ConfigurationProperties(prefix = "shepherd.<能力>")` + Lombok `@Data`，字段写 javadoc（会进 `spring-configuration-metadata.json`，下游 IDE 里显示为提示文案）。
 6. 需要错误码时落在对应 HTTP 段的 `00~49` 内，并扩展值域守卫单测。
 7. 写 `ApplicationContextRunner` 装配测试 + 行为单测。
-8. 更新 README：能力依赖矩阵、配置项表、错误码表，以及有取舍的话补进「已知取舍」。
+8. 更新 README：制品矩阵、配置项表、错误码表，以及有取舍的话补进「已知取舍」。
+9. **判断是否需要新建一个薄 starter，或并入现有 starter**——新能力若依赖独立的重型三方库（如新对象存储厂商、新的导入导出格式）通常新建一个 `shepherd-spring-boot-starter-<能力>`；若只是扩展现有能力域（如给 web 地基加一个新的横切关注点），并入对应的现有 starter 即可。新建 starter 要同时把它加进 root 聚合 pom 的 `<modules>` 与 `shepherd-dependencies` 的 `dependencyManagement`。
+
+## 多模块改造踩坑记录
+
+- **`shepherd-parent` 里 import `shepherd-dependencies` 这个 BOM，版本必须写字面量（`<version>0.2.0-SNAPSHOT</version>`），不能写 `${project.version}`。** 原因是属性插值发生在「使用这段 XML 的 pom」的上下文，而不是定义它的 `shepherd-parent` 自身的上下文：`shepherd-parent` 被业务项目（如 `yun/backend`）继承后，这段 `dependencyManagement` 是业务项目 effective pom 的一部分，此时 `${project.version}` 解析成的是**业务项目自己的版本**（比如 backend 的 `0.0.1`），Maven 会去找根本不存在的 `com.shepherd:shepherd-dependencies:pom:0.0.1` 并直接报错。这个 bug 在 framework 自身仓库内极难发现——reactor 里所有模块（含 `shepherd-dependencies` 本身）版本恒相同，`${project.version}` 在 framework 内部 build 时凑巧总解析对，只有让真正的下游项目（版本号不同）去继承时才会炸。升版本时 `shepherd-parent` 的 `<version>` 与这处字面量要一起改，容易漏改，值得留意。
+- **5 个薄 starter 必须是 jar 打包（即不声明 `<packaging>`，用 Maven 默认值），不能是 `packaging=pom`。** `packaging=pom` 的模块只产出一个 `.pom` 文件，没有 `.jar`；下游一条普通 `<dependency>` 声明去解析这种坐标时，Maven 找不到 jar 会报错（`.pom` 只能被 `import`/继承，不能被 `<dependency>` 当依赖坐标使用）。`pom` 打包只适用于两类场景：BOM（`shepherd-dependencies`，靠 `<scope>import</scope>` 使用）与业务项目继承的父 pom（`shepherd-parent`，靠 `<parent>` 使用）。薄 starter 虽然自己没有 `src/`、只是一堆 `<dependency>` 的聚合器，但它要被下游当**普通依赖**引用，所以必须是 jar——这与 Spring Boot 官方的 `spring-boot-starter-web` 等薄 starter 是同一个打包类型。

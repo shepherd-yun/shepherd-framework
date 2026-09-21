@@ -11,6 +11,8 @@
     </parent>
 
     <artifactId>shepherd-spring-boot-starter-excel</artifactId>
+    <!-- 无源码的依赖聚合器。不声明 packaging（即 jar）：packaging=pom 只产出 .pom，
+         下游一条普通 <dependency> 解析不到 jar；Spring Boot 官方 starter 同此。 -->
     <name>shepherd-spring-boot-starter-excel</name>
     <description>Excel 导入导出：同步导出、下拉模板、分批导入、异步任务</description>
 

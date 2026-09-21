@@ -11,6 +11,8 @@
     </parent>
 
     <artifactId>shepherd-spring-boot-starter-security</artifactId>
+    <!-- 无源码的依赖聚合器。不声明 packaging（即 jar）：packaging=pom 只产出 .pom，
+         下游一条普通 <dependency> 解析不到 jar；Spring Boot 官方 starter 同此。 -->
     <name>shepherd-spring-boot-starter-security</name>
     <description>JWT 认证链、登录态存储、REST 风格的认证/鉴权失败响应</description>
 

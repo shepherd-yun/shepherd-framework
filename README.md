@@ -1,8 +1,20 @@
-# shepherd-spring-boot-starter
+# shepherd-framework
 
 后端工程地基：统一响应契约与自动包装、全局异常、TraceId（含 @Async 透传）、CORS、访问日志、防重复提交与限流、MyBatis-Plus 审计填充、JWT 认证链、OpenAPI 自动配置、对象存储（S3 协议 + 阿里云 OSS 原生）、单号生成、Excel 导入导出。
 
-坐标：`com.shepherd:shepherd-spring-boot-starter:0.1.0-SNAPSHOT`，基础包 `com.shepherd.boot`。发布在 [GitHub Packages](https://github.com/shepherd-yun/shepherd-spring-boot-starter/packages)。
+多模块 Maven 工程，基础包 `com.shepherd.boot`，版本统一为 `0.2.0-SNAPSHOT`，发布在 [GitHub Packages](https://github.com/shepherd-yun/shepherd-framework/packages)：
+
+| 制品 | 用途 |
+|---|---|
+| `shepherd-parent` | 业务项目的父 pom（推荐）：版本收敛 + 构建约定 |
+| `shepherd-dependencies` | BOM，甲方已有自家 parent 时 import 它 |
+| `shepherd-spring-boot-starter-web` | Web 地基（含限流/防重，硬依赖 Redis） |
+| `shepherd-spring-boot-starter-mybatis` | MyBatis-Plus 地基 |
+| `shepherd-spring-boot-starter-security` | JWT 认证链（硬依赖 Redis） |
+| `shepherd-spring-boot-starter-oss` | 对象存储（S3 兼容；阿里云原生 SDK 需额外声明一行） |
+| `shepherd-spring-boot-starter-excel` | Excel 导入导出 |
+| `shepherd-common` / `shepherd-common-mybatis` | 契约与公共类型，通常由 starter 传递带入，不需显式声明 |
+| `shepherd-spring-boot-autoconfigure` | 自动装配实现，由 starter 带入，不直接引用 |
 
 不含用户体系（登录/角色/租户等业务模型留在使用方项目里）；引入后写几行 `shepherd.*` 配置即具备基础能力，直接开发业务逻辑。
 
@@ -31,55 +43,81 @@ export GITHUB_TOKEN=$(gh auth token)
 
 ### 2. 在下游项目声明仓库与依赖
 
+不管选哪种接入方式，都要先声明仓库（读取 GitHub Packages 同样需要认证，见上一步）：
+
 ```xml
 <repositories>
   <repository>
     <id>github</id>
-    <url>https://maven.pkg.github.com/shepherd-yun/shepherd-spring-boot-starter</url>
+    <url>https://maven.pkg.github.com/shepherd-yun/shepherd-framework</url>
     <releases><enabled>true</enabled></releases>
     <snapshots><enabled>true</enabled></snapshots>
   </repository>
 </repositories>
-
-<dependency>
-  <groupId>com.shepherd</groupId>
-  <artifactId>shepherd-spring-boot-starter</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
-</dependency>
 ```
 
 `<repository>` 的 `id` 必须与 settings.xml 里 server 的 `id` 一致（都叫 `github`），否则 Maven 拿不到凭证。
 
-### 3. 按需补齐能力依赖
+然后二选一：
 
-Starter 内部把重型依赖标记为 `optional=true`，不会传递给下游；按需要的能力自行在下游 pom 中声明：
+**方式 A：继承 `shepherd-parent`（推荐）**——版本收敛、编译器/Lombok/MapStruct 注解处理器顺序、source jar 等构建约定一次性拿到：
 
-| 需要的能力 | 下游需自行声明的依赖 |
-|---|---|
-| Web 契约、统一异常处理、TraceId | `spring-boot-starter-webmvc` |
-| JWT 鉴权（登录态、`SecurityFilterChain`） | `spring-boot-starter-security` + `spring-boot-starter-data-redis` + `jjwt-api` / `jjwt-impl` / `jjwt-jackson` |
-| MyBatis-Plus 分页插件与审计字段自动填充 | `mybatis-plus-spring-boot4-starter` + `mybatis-plus-jsqlparser` |
-| 对象存储（S3 协议：AWS/R2/MinIO/阿里云 OSS 的 S3 兼容端点） | `software.amazon.awssdk:s3` + `software.amazon.awssdk:apache-client` |
-| 对象存储（阿里云 OSS 原生 SDK） | `com.aliyun.oss:aliyun-sdk-oss` |
-| `@RepeatSubmit` / `@RateLimit` | `spring-boot-starter-aspectj` + `spring-boot-starter-data-redis`（**两者缺任一则注解静默无效**） |
-| 单号生成（`SerialNoGenerator`） | `spring-boot-starter-data-redis` |
-| Excel 导入导出（`ExcelResponses` / `ExcelImporter`） | `cn.idev.excel:fastexcel`；异步导入导出另需 `spring-boot-starter-data-redis` + 对象存储 + `spring-boot-starter-security` |
-| OpenAPI（Swagger UI、`Result` schema 修正） | `springdoc-openapi-starter-webmvc-ui` |
+```xml
+<parent>
+  <groupId>com.shepherd</groupId>
+  <artifactId>shepherd-parent</artifactId>
+  <version>0.2.0-SNAPSHOT</version>
+  <relativePath/>
+</parent>
 
-`optional` 依赖的版本**不会**随 Starter 传递给下游（Maven 的 `dependencyManagement` 不参与传递），下游需自行管理版本。本 Starter 在下列组合下构建并通过全部单测：
+<dependencies>
+  <dependency>
+    <groupId>com.shepherd</groupId>
+    <artifactId>shepherd-spring-boot-starter-web</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>com.shepherd</groupId>
+    <artifactId>shepherd-spring-boot-starter-mybatis</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>com.shepherd</groupId>
+    <artifactId>shepherd-spring-boot-starter-security</artifactId>
+  </dependency>
+</dependencies>
+```
 
-| 依赖 | 验证版本 |
-|---|---|
-| Spring Boot | 4.0.7 |
-| Java | 21 |
-| MyBatis-Plus | 3.5.16 |
-| jjwt | 0.12.6 |
-| springdoc-openapi | 3.0.2 |
-| AWS SDK v2 | 2.46.7 |
-| aliyun-sdk-oss | 3.18.5 |
-| FastExcel | 1.3.0 |
+**方式 B：import `shepherd-dependencies`（甲方已有自家 parent 时）**——只拿版本清单，不改变下游的 parent：
 
-下游若同样以 `spring-boot-starter-parent` 为 parent，Spring 自家依赖的版本会自动对齐，只有上表中非 Spring 的几项需要显式写 `<version>`。
+```xml
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>com.shepherd</groupId>
+      <artifactId>shepherd-dependencies</artifactId>
+      <version>0.2.0-SNAPSHOT</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
+
+<dependencies>
+  <dependency>
+    <groupId>com.shepherd</groupId>
+    <artifactId>shepherd-spring-boot-starter-web</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>com.shepherd</groupId>
+    <artifactId>shepherd-spring-boot-starter-mybatis</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>com.shepherd</groupId>
+    <artifactId>shepherd-spring-boot-starter-security</artifactId>
+  </dependency>
+</dependencies>
+```
+
+两种方式下，`<dependencies>` 里都**不写任何第三方版本号**——按需要的能力挑选 starter（对象存储用 `shepherd-spring-boot-starter-oss`，Excel 用 `shepherd-spring-boot-starter-excel`），每个 starter 已经把自己需要的重型依赖（含 Redis、jjwt、MyBatis-Plus、AWS SDK、FastExcel 等）作为**非 optional 的普通依赖**传递给下游，版本由 BOM 统一钉住，下游 pom 里唯一出现的 `<version>` 就是自身的版本号与继承/import 的 `0.2.0-SNAPSHOT`。
 
 ## 配置项
 
@@ -468,11 +506,15 @@ Starter 的每个 Bean 均挂 `@ConditionalOnMissingBean`：下游声明同类�
 
 ## 开发与发布
 
+本仓库是 root 聚合 pom + 10 个子模块的多模块工程，以下命令均在仓库根目录执行，覆盖全部模块：
+
 ```bash
-mvn test                     # 全量单测（214 个），验收门槛
-mvn -DskipTests install      # 装进本地仓库，供本机下游项目联调
+mvn test                     # 全量单测（214 个 / 43 个测试类），验收门槛
+mvn -DskipTests install      # 装进本地仓库 11 个制品（10 子模块 + root 聚合 pom），供本机下游项目联调
 mvn deploy -P release        # 发布到 GitHub Packages（附带 sources + javadoc jar）
 ```
+
+`release` profile 定义在 `shepherd-parent` 里，只对继承它的模块生效；`shepherd-dependencies` 与 root 聚合 pom 不继承 `shepherd-parent`，不触发 javadoc/sources 执行。**实测结论：javadoc 对 `packaging=pom` 的模块（`shepherd-parent` 自身）不报错**——`javadoc:jar` 无源码可处理时静默跳过，`BUILD SUCCESS`，无需为它加 `<skip>` 之类的特殊配置。5 个薄 starter 没有 `src/`，同理静默跳过，不产出 sources/javadoc jar，这也是预期行为而非缺陷。
 
 发布前置：`export GITHUB_TOKEN=$(gh auth token)`，且该 token 含 `write:packages`（`gh auth refresh -h github.com -s write:packages`）。
 

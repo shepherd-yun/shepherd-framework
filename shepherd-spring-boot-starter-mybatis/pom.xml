@@ -11,6 +11,8 @@
     </parent>
 
     <artifactId>shepherd-spring-boot-starter-mybatis</artifactId>
+    <!-- 无源码的依赖聚合器。不声明 packaging（即 jar）：packaging=pom 只产出 .pom，
+         下游一条普通 <dependency> 解析不到 jar；Spring Boot 官方 starter 同此。 -->
     <name>shepherd-spring-boot-starter-mybatis</name>
     <description>MyBatis-Plus 地基：审计字段自动填充、分页插件、MpPages 转换</description>
 
