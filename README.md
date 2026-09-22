@@ -2,18 +2,20 @@
 
 后端工程地基：统一响应契约与自动包装、全局异常、TraceId（含 @Async 透传）、CORS、访问日志、防重复提交与限流、MyBatis-Plus 审计填充、JWT 认证链、OpenAPI 自动配置、对象存储（S3 协议 + 阿里云 OSS 原生）、单号生成、Excel 导入导出。
 
+**基线要求：Spring Boot 4.0.x / Java 21。** 105 个类是对着 Spring Framework 7 / Jackson 3（`tools.jackson.*`）编译的，低于此基线不保证可用（见下文「方式 B」的版本风险说明）。
+
 多模块 Maven 工程，基础包 `com.shepherd.boot`，版本统一为 `0.2.0-SNAPSHOT`，发布在 [GitHub Packages](https://github.com/shepherd-yun/shepherd-framework/packages)：
 
 | 制品 | 用途 |
 |---|---|
 | `shepherd-parent` | 业务项目的父 pom（推荐）：版本收敛 + 构建约定 |
 | `shepherd-dependencies` | BOM，甲方已有自家 parent 时 import 它 |
-| `shepherd-spring-boot-starter-web` | Web 地基（含限流/防重，硬依赖 Redis） |
+| `shepherd-spring-boot-starter-web` | Web 地基（含限流/防重，硬依赖 Redis；**非 optional 硬带 springdoc + Swagger UI**，见下文「覆盖方式」） |
 | `shepherd-spring-boot-starter-mybatis` | MyBatis-Plus 地基 |
 | `shepherd-spring-boot-starter-security` | JWT 认证链（硬依赖 Redis） |
 | `shepherd-spring-boot-starter-oss` | 对象存储（S3 兼容；阿里云原生 SDK 需额外声明一行） |
 | `shepherd-spring-boot-starter-excel` | Excel 导入导出 |
-| `shepherd-common` / `shepherd-common-mybatis` | 契约与公共类型，通常由 starter 传递带入，不需显式声明 |
+| `shepherd-common` / `shepherd-common-mybatis` | 契约与公共类型，通常由 starter 传递带入，不需显式声明；**例外**：甲方用自己的 web 层、完全不接 autoconfigure，但仍想复用 `Result`/`ErrorCode`/`BizException` 这套前后端契约时，单独显式声明 `shepherd-common` |
 | `shepherd-spring-boot-autoconfigure` | 自动装配实现，由 starter 带入，不直接引用 |
 
 不含用户体系（登录/角色/租户等业务模型留在使用方项目里）；引入后写几行 `shepherd.*` 配置即具备基础能力，直接开发业务逻辑。
@@ -87,6 +89,8 @@ export GITHUB_TOKEN=$(gh auth token)
 ```
 
 **方式 B：import `shepherd-dependencies`（甲方已有自家 parent 时）**——只拿版本清单，不改变下游的 parent：
+
+> **版本风险**：`shepherd-dependencies` **不** import `spring-boot-dependencies`。若甲方 parent 钉在 Spring Boot 3.x，甲方自己的 dependencyManagement 会把 starter 传递进来的 `spring-boot-starter-webmvc` 等强降到 3.x——**依赖解析不会报错，编译也可能通过，但运行期会炸 `NoClassDefFoundError` / `NoSuchMethodError`**（本框架是对着 Spring Framework 7 / Jackson 3 编译的）。方式 B 接入前务必确认甲方 parent 的 Spring Boot 基线就是 4.0.x。
 
 ```xml
 <dependencyManagement>
@@ -468,6 +472,31 @@ Starter 的每个 Bean 均挂 `@ConditionalOnMissingBean`：下游声明同类�
 
 特别地，`SecurityFilterChain` 是**整体接管**——下游一旦声明自己的 `SecurityFilterChain` Bean，Starter 默认链完全不生效，`permit-urls` 等配置项对下游自定义链不再有任何作用（因为它们本来就只是 Starter 默认链读取的输入）。同理，`shepherd.security.permit-urls` 相对其默认值是**整体替换**，不是追加。
 
+### 排除 springdoc + Swagger UI
+
+`shepherd-spring-boot-starter-web` 把 `springdoc-openapi-starter-webmvc-ui`（含 `org.webjars:swagger-ui`）作为**非 optional** 依赖带入，会进生产 fat jar。生产环境不需要 API 文档时，两件事都要做：
+
+```xml
+<dependency>
+  <groupId>com.shepherd</groupId>
+  <artifactId>shepherd-spring-boot-starter-web</artifactId>
+  <exclusions>
+    <exclusion>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    </exclusion>
+  </exclusions>
+</dependency>
+```
+
+```yaml
+shepherd:
+  security:
+    permit-urls: [ ] # 默认放行 /swagger-ui/**、/swagger-ui.html、/v3/api-docs/**；不需要文档时一并清空或改写（List 是整体替换，见上文）
+```
+
+只排除依赖不改 `permit-urls`，这三个路径仍在免认证名单里（虽然此时 controller 已经不存在了，实际风险有限，但配置与依赖应当一致）。
+
 ## 对象存储 preset 表
 
 三个布尔开关无人记得住，故用预设承载；`shepherd.storage.path-style-access` / `chunked-encoding` / `checksum-compat-mode` 三项显式设置时覆盖预设。
@@ -509,7 +538,7 @@ Starter 的每个 Bean 均挂 `@ConditionalOnMissingBean`：下游声明同类�
 本仓库是 root 聚合 pom + 10 个子模块的多模块工程，以下命令均在仓库根目录执行，覆盖全部模块：
 
 ```bash
-mvn test                     # 全量单测（214 个 / 43 个测试类），验收门槛
+mvn test                     # 全量单测（215 个 / 44 个测试类），验收门槛
 mvn -DskipTests install      # 装进本地仓库 11 个制品（10 子模块 + root 聚合 pom），供本机下游项目联调
 mvn deploy -P release        # 发布到 GitHub Packages（附带 sources + javadoc jar）
 ```

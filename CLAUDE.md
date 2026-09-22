@@ -24,7 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 常用命令
 
 ```bash
-mvn -P home test                          # 全量单测（当前 214 个），唯一验收门槛
+mvn -P home test                          # 全量单测（当前 215 个 / 44 个测试类），唯一验收门槛
 mvn -P home test -Dtest=ExcelImporterTest # 单个测试类
 mvn -P home test -Dtest='ExcelImporterTest#reads_rows_in_batches_and_reports_success'  # 单个方法
 mvn -P home -DskipTests install           # 装进本地仓库，供本机下游项目联调
@@ -41,7 +41,7 @@ mvn -P home deploy -P release             # 发布到 GitHub Packages（附 sour
 - **Jackson 3**：包名是 `tools.jackson.*`，类型是 `JsonMapper` 而不是 `ObjectMapper`；定制序列化走 `JsonMapperBuilderCustomizer`（见 `ShepherdWebAutoConfiguration.shepherdLongToStringCustomizer`，Long 全部序列化成字符串避免 JS 精度丢失）。
 - Redis 自动配置的类名在 Boot 4 里换了包，`@AutoConfiguration` 里用字符串形式 `afterName = "org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration"` 引用，别改成类引用（那个类不在本模块的编译期 classpath 上）。
 - **JSpecify 空安全**：每个包都有 `package-info.java` 标 `@NullMarked`，即默认不可为 null，可空处显式标 `@Nullable`。**新增包必须补上 `package-info.java`**。
-- **Lombok 必须排在 `spring-boot-configuration-processor` 之前**（`pom.xml` 的 `annotationProcessorPaths`）：`@Data` 生成的 getter/setter 要先存在，配置元数据处理器才扫得到属性。
+- **Lombok 必须排在 `spring-boot-configuration-processor` 之前**（`shepherd-parent/pom.xml` 的 `pluginManagement` 里的 `annotationProcessorPaths`）：`@Data` 生成的 getter/setter 要先存在，配置元数据处理器才扫得到属性。
 
 ## 依赖策略
 
