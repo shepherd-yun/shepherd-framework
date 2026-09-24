@@ -171,11 +171,58 @@ jar 内带 `META-INF/spring-configuration-metadata.json`（由 `spring-boot-conf
 | `shepherd.security.jwt.access-ttl-seconds` | `7200` | access token 有效期（秒） |
 | `shepherd.security.jwt.refresh-ttl-seconds` | `1209600` | refresh token 有效期（秒） |
 
+#### 在登录用户上携带业务身份字段
+
+`LoginUser` 带一个 `attributes`（`Map<String, Object>`），用来放下游自己的身份字段，比如用户类型、所属组织、可见事业部。Starter 不定义这些字段的含义，只负责让它们随 access token 一起进出：
+
+```java
+// 登录签发
+LoginUser user = new LoginUser(id, username, roles, jti,
+        Map.of("userType", "FORWARDER", "orgId", forwarderId));
+String token = jwtTokenProvider.generateAccessToken(user);
+
+// 请求内读取（principal 就是 LoginUser）
+LoginUser u = (LoginUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+Long orgId = u.attributeLong("orgId");
+```
+
+建议在业务代码里包一层强类型对象（如 `TmsUser.from(loginUser)`），不要让 `attribute("xxx")` 散落在各处。约束：
+
+- 整个 Map 放在 JWT 的 `attrs` 这一个 claim 里，不平铺到顶层，所以键名不会覆盖 `sub`/`roles`/`type` 等安全字段。
+- **值要经过一次 JSON 往返**：`Long` 回来可能是 `Integer`，自定义对象会变成 `Map`。读数值用 `attributeLong`，不要直接强转。
+- 不允许 `null` 值（构造时就抛异常），因为往返之后 `null` 和「没有这个键」分不出来。
+- JWT 只是 Base64 编码、没有加密：**不要放敏感信息，也不要放大列表**。
+- token 过期之前值不会刷新。权限变了要么等过期，要么通过 `LoginTokenStore` 把用户踢下线。
+- 原来的四参构造器保留，attributes 为空时签出的 token 与之前完全一样。
+
 ### `shepherd.mybatis.*`（需 `mybatis-plus-spring-boot4-starter` 在 classpath）
 
 | 属性 | 默认值 | 说明 |
 |---|---|---|
 | `shepherd.mybatis.db-type` | `postgre_sql` | 分页插件方言，绑定到 MyBatis-Plus 的 `DbType`（宽松绑定，`postgre_sql`/`postgre-sql`/`POSTGRE_SQL` 均可） |
+
+#### 追加 MyBatis-Plus 插件（数据权限、乐观锁等）
+
+直接声明 `InnerInterceptor` Bean 就行，不需要整体替换 `MybatisPlusInterceptor`：
+
+```java
+@Bean
+@Order(1)
+DataPermissionInterceptor dataPermissionInterceptor(MyDataPermissionHandler handler) {
+    return new DataPermissionInterceptor(handler);
+}
+
+@Bean
+@Order(2)
+OptimisticLockerInnerInterceptor optimisticLockerInnerInterceptor() {
+    return new OptimisticLockerInnerInterceptor();
+}
+```
+
+Starter 会把这些 Bean 按 `@Order` 排好，**分页插件固定放在最后**。分页插件拼 COUNT 语句时用的是它执行那一刻的 SQL：如果数据权限排在它后面，COUNT 就不带过滤条件，结果是列表只显示本公司数据，总数却是全表的。
+
+- 需要调整分页插件本身（比如设 `maxLimit`）时，声明一个 `PaginationInnerInterceptor` Bean，它会替换掉默认的那个，位置仍然在最后。声明两个会启动失败。
+- 仍然可以整体接管：声明自己的 `MybatisPlusInterceptor` 之后，上面的收集和排序都不生效，分页插件要自己加。
 
 ### `shepherd.storage.*`（需 `shepherd.storage.enabled=true` 才装配）
 
@@ -538,7 +585,7 @@ shepherd:
 本仓库是 root 聚合 pom + 10 个子模块的多模块工程，以下命令均在仓库根目录执行，覆盖全部模块：
 
 ```bash
-mvn test                     # 全量单测（215 个 / 44 个测试类），验收门槛
+mvn test                     # 全量单测（228 个 / 46 个测试类），验收门槛
 mvn -DskipTests install      # 装进本地仓库 11 个制品（10 子模块 + root 聚合 pom），供本机下游项目联调
 mvn deploy -P release        # 发布到 GitHub Packages（附带 sources + javadoc jar）
 ```

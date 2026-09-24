@@ -12,10 +12,17 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 public class JwtTokenProvider {
 
     private static final int MIN_SECRET_BYTES = 32;
+
+    /**
+     * {@link LoginUser#attributes()} 整体收进这一个 claim，而不是平铺到顶层：
+     * 平铺会让下游的键与 {@code sub}/{@code exp}/{@code roles}/{@code type} 等撞名，悄悄覆盖掉安全相关字段。
+     */
+    static final String ATTRS_CLAIM = "attrs";
 
     private final SecretKey key;
     private final ShepherdSecurityProperties.Jwt props;
@@ -42,12 +49,17 @@ public class JwtTokenProvider {
 
     public String generateAccessToken(LoginUser user) {
         Date now = new Date();
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .id(user.jti())
                 .subject(String.valueOf(user.userId()))
                 .claim("username", user.username())
                 .claim("roles", user.roles())
-                .claim("type", "access")
+                .claim("type", "access");
+        if (!user.attributes().isEmpty()) {
+            // 空时不写，token 保持与引入 attributes 之前完全一致
+            builder.claim(ATTRS_CLAIM, user.attributes());
+        }
+        return builder
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + props.getAccessTtlSeconds() * 1000))
                 .signWith(key)
@@ -78,7 +90,12 @@ public class JwtTokenProvider {
             if (roles == null) {
                 roles = List.of();
             }
-            return new LoginUser(Long.valueOf(c.getSubject()), c.get("username", String.class), roles, c.getId());
+            Map<String, Object> attrs = c.get(ATTRS_CLAIM, Map.class);
+            if (attrs == null) {
+                attrs = Map.of();
+            }
+            return new LoginUser(Long.valueOf(c.getSubject()), c.get("username", String.class), roles, c.getId(),
+                    attrs);
         } catch (ExpiredJwtException e) {
             throw new BizException(CommonResultCode.TOKEN_EXPIRED);
         } catch (JwtException | IllegalArgumentException e) {

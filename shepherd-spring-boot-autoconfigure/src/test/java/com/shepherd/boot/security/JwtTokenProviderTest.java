@@ -2,9 +2,11 @@ package com.shepherd.boot.security;
 
 import com.shepherd.boot.web.exception.BizException;
 import com.shepherd.boot.web.code.CommonResultCode;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -34,6 +36,60 @@ class JwtTokenProviderTest {
         assertThat(parsed.username()).isEqualTo("alice");
         assertThat(parsed.roles()).containsExactly("ADMIN");
         assertThat(parsed.jti()).isEqualTo("jti-1");
+    }
+
+    @Test
+    void attributes_round_trip_through_access_token() {
+        JwtTokenProvider p = provider();
+        LoginUser user = new LoginUser(42L, "alice", List.of("FORWARDER"), "jti-1",
+                Map.of("userType", "FORWARDER", "orgId", 7L, "divisionIds", List.of(1L, 2L)));
+
+        LoginUser parsed = p.parseAccess(p.generateAccessToken(user));
+
+        assertThat(parsed.attribute("userType")).isEqualTo("FORWARDER");
+        assertThat(parsed.attributeLong("orgId")).isEqualTo(7L);
+        assertThat(parsed.attribute("divisionIds")).asInstanceOf(InstanceOfAssertFactories.LIST)
+                .extracting(n -> ((Number) n).longValue())
+                .containsExactly(1L, 2L);
+    }
+
+    /**
+     * 钉死 JSON 往返会丢失 Java 数值类型这件事：写进去的 Long 回来是 Integer。
+     * {@link LoginUser#attributeLong} 就是为吸收这个差异而存在的，下游别直接强转 Long。
+     */
+    @Test
+    void small_long_attribute_comes_back_as_integer_after_json_round_trip() {
+        JwtTokenProvider p = provider();
+        LoginUser user = new LoginUser(42L, "alice", List.of(), "jti-1", Map.of("orgId", 7L));
+
+        LoginUser parsed = p.parseAccess(p.generateAccessToken(user));
+
+        assertThat(parsed.attribute("orgId")).isInstanceOf(Integer.class);
+        assertThat(parsed.attributeLong("orgId")).isEqualTo(7L);
+    }
+
+    @Test
+    void attributes_live_under_one_claim_so_they_cannot_shadow_security_claims() {
+        JwtTokenProvider p = provider();
+        LoginUser user = new LoginUser(42L, "alice", List.of("USER"), "jti-1",
+                Map.of("type", "refresh", "sub", "999", "roles", List.of("ADMIN")));
+
+        LoginUser parsed = p.parseAccess(p.generateAccessToken(user));
+
+        assertThat(parsed.userId()).isEqualTo(42L);
+        assertThat(parsed.roles()).containsExactly("USER");
+        assertThat(parsed.attribute("roles")).isEqualTo(List.of("ADMIN"));
+    }
+
+    @Test
+    void token_without_attributes_parses_to_empty_map() {
+        JwtTokenProvider p = provider();
+
+        LoginUser parsed = p.parseAccess(p.generateAccessToken(new LoginUser(42L, "alice", List.of(), "jti-1")));
+
+        assertThat(parsed.attributes()).isEmpty();
+        assertThat(parsed.attribute("orgId")).isNull();
+        assertThat(parsed.attributeLong("orgId")).isNull();
     }
 
     @Test
