@@ -1,6 +1,7 @@
 package com.shepherd.boot.excel;
 
 import cn.idev.excel.context.AnalysisContext;
+import cn.idev.excel.metadata.data.ReadCellData;
 import cn.idev.excel.read.listener.ReadListener;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -8,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -68,6 +70,11 @@ class BatchReadListener<T> implements ReadListener<T> {
         if (buffer.size() >= batchSize) {
             flush();
         }
+    }
+
+    @Override
+    public void invokeHead(Map<Integer, ReadCellData<?>> headMap, AnalysisContext context) {
+        ImportHeadCheck.check(headMap, context);
     }
 
     @Override
