@@ -3,3 +3,9 @@ target/
 .idea/
 *.iml
 .DS_Store
+
+# Eclipse / VS Code Java (JDT LS) 生成的工程元数据
+.project
+.classpath
+.factorypath
+.settings/
