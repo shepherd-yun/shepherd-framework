@@ -8,7 +8,7 @@
          dependencyManagement 混进来，使下游分不清版本来源。官方 spring-boot-dependencies 同此。 -->
     <groupId>com.shepherd</groupId>
     <artifactId>shepherd-dependencies</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.3.0</version>
     <packaging>pom</packaging>
 
     <name>shepherd-dependencies</name>
