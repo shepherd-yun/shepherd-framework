@@ -574,7 +574,7 @@ public PageResult<UserVO> page(UserPageQuery query) {
 - 返回类型已是 `Result`（`GlobalExceptionHandler` 的返回值走这条，不会二次包装）；
 - 返回类型是 `byte[]` / `Resource` / `StreamingResponseBody`（文件下载）；
 - 方法或其声明类标了 `@NoResultWrap`（显式逃生口，用于第三方回调、裸 JSON 导出等）；
-- 声明类在 `org.springdoc.*` / `org.springframework.boot.actuate.*` 下（硬排除，不可配置——包装后 Swagger UI 与 actuator 端点都会失效）；
+- 声明类在 `org.springdoc.*` / `org.springframework.boot.actuate.*` / `org.springframework.boot.webmvc.actuate.*` 下（硬排除，不可配置——包装后 Swagger UI 与 actuator 端点都会失效。Boot 4 的 actuator MVC 端点在 `webmvc.actuate` 包下，0.4.0 及以前漏了这一项，`/actuator/health` 会被包装）；
 - `wrap-result.base-packages` 非空且声明类不在其中。
 
 `String` 返回值会被手工序列化成 JSON 并把 `Content-Type` 改为 `application/json`（否则 `StringHttpMessageConverter` 拿到 `Result` 对象会 `ClassCastException`）。`null` / `void` 包成 `data` 为 `null` 的成功响应。
@@ -653,7 +653,7 @@ shepherd:
 本仓库是 root 聚合 pom + 10 个子模块的多模块工程，以下命令均在仓库根目录执行，覆盖全部模块：
 
 ```bash
-mvn test                     # 全量单测（249 个 / 47 个测试类），验收门槛
+mvn test                     # 全量单测（250 个 / 47 个测试类），验收门槛
 mvn -DskipTests install      # 装进本地仓库 11 个制品（10 子模块 + root 聚合 pom），供本机下游项目联调
 mvn deploy -P release        # 发布到 GitHub Packages（附带 sources + javadoc jar）
 ```

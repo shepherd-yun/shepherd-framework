@@ -27,12 +27,16 @@ import java.util.List;
 public class ResultBodyAdvice implements ResponseBodyAdvice<Object> {
 
     /**
-     * 硬排除，不可通过配置打开：这两个包的 controller 有自己的响应契约，
+     * 硬排除，不可通过配置打开：这些包的 controller 有自己的响应契约，
      * 包装后 Swagger UI 与 actuator 端点都会失效。
+     *
+     * <p>Boot 4 把 actuator 的 MVC 端点实现挪到了 {@code org.springframework.boot.webmvc.actuate}，
+     * 只写旧包名会让 /actuator/health 被包装。旧包名留着不删：多排除一个包没有代价，漏排除一个就会把端点包坏。
      */
     private static final List<String> HARD_EXCLUDED_PACKAGES = List.of(
             "org.springdoc.",
-            "org.springframework.boot.actuate.");
+            "org.springframework.boot.actuate.",
+            "org.springframework.boot.webmvc.actuate.");
 
     private final ShepherdWebProperties.WrapResult properties;
     private final JsonMapper jsonMapper;

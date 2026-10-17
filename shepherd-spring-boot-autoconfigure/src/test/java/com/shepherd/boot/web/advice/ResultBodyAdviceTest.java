@@ -12,8 +12,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.util.List;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.core.MethodParameter;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -134,5 +141,22 @@ class ResultBodyAdviceTest {
         mvc(new ProbeController(), advice(List.of("com.shepherd.boot")))
                 .perform(get("/dto"))
                 .andExpect(jsonPath("$.data.name").value("alice"));
+    }
+
+    /**
+     * 钉死 Boot 4 下真正处理 actuator 请求的那个类：Boot 4 把 MVC 端点实现从
+     * {@code org.springframework.boot.actuate} 挪到了 {@code org.springframework.boot.webmvc.actuate}，
+     * 只按旧包名排除会让 /actuator/health 被套上 Result，监控按顶层 status 读不到值。
+     * 用真实类而非自造同名包：Boot 再挪一次包，这里会立刻变红。
+     */
+    @Test
+    void boot4_webmvc_actuator_endpoints_are_never_wrapped() throws Exception {
+        Class<?> operationHandler = Class.forName(
+                "org.springframework.boot.webmvc.actuate.endpoint.web.AbstractWebMvcEndpointHandlerMapping$OperationHandler");
+        Method handle = operationHandler.getDeclaredMethod("handle", HttpServletRequest.class, Map.class);
+
+        boolean wraps = advice(List.of()).supports(new MethodParameter(handle, -1), JacksonJsonHttpMessageConverter.class);
+
+        assertThat(wraps).isFalse();
     }
 }
