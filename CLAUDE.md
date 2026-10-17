@@ -24,7 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 常用命令
 
 ```bash
-mvn -P home test                          # 全量单测（当前 236 个 / 47 个测试类），唯一验收门槛
+mvn -P home test                          # 全量单测（当前 249 个 / 47 个测试类），唯一验收门槛
 mvn -P home test -Dtest=ExcelImporterTest # 单个测试类
 mvn -P home test -Dtest='ExcelImporterTest#reads_rows_in_batches_and_reports_success'  # 单个方法
 mvn -P home -DskipTests install           # 装进本地仓库，供本机下游项目联调

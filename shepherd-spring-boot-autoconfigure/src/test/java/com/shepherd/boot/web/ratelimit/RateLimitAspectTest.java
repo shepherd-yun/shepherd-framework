@@ -40,7 +40,25 @@ class RateLimitAspectTest {
         String global() { return "ok"; }
 
         String unguarded() { return "free"; }
+
+        @RateLimit(count = 1, dimension = RateLimit.Dimension.KEY, key = "#phone")
+        String sendCode(String phone) { return "sent"; }
+
+        @RateLimit(count = 1, dimension = RateLimit.Dimension.KEY, key = "#req.phone")
+        String sendCodeByBody(SmsRequest req) { return "sent"; }
+
+        @RateLimit(count = 3, period = 60, dimension = RateLimit.Dimension.KEY, key = "#phone")
+        @RateLimit(count = 2, period = 1, unit = TimeUnit.DAYS, dimension = RateLimit.Dimension.KEY, key = "#phone")
+        String sendCodeTwoWindows(String phone) { return "sent"; }
+
+        @RateLimit(dimension = RateLimit.Dimension.KEY)
+        String keyDimensionWithoutExpression(String phone) { return "sent"; }
+
+        @RateLimit(key = "#phone")
+        String expressionWithoutKeyDimension(String phone) { return "sent"; }
     }
+
+    record SmsRequest(@org.jspecify.annotations.Nullable String phone) {}
 
     private FakeLimiter limiter;
     private Target proxy;
@@ -102,6 +120,85 @@ class RateLimitAspectTest {
         assertThatThrownBy(proxy::global)
                 .isInstanceOf(BizException.class)
                 .hasMessage("挤爆了");
+    }
+
+    @Test
+    void key_dimension_counts_each_expression_value_separately() {
+        proxy.sendCode("13800000001");
+
+        assertThat(proxy.sendCode("13800000002")).isEqualTo("sent");
+        assertThatThrownBy(() -> proxy.sendCode("13800000001"))
+                .isInstanceOf(BizException.class)
+                .satisfies(ex -> assertThat(((BizException) ex).getErrorCode().getCode())
+                        .isEqualTo(CommonResultCode.RATE_LIMITED.getCode()));
+    }
+
+    @Test
+    void key_expression_can_read_a_property_of_a_request_body() {
+        proxy.sendCodeByBody(new SmsRequest("13800000001"));
+
+        assertThat(proxy.sendCodeByBody(new SmsRequest("13800000002"))).isEqualTo("sent");
+        assertThatThrownBy(() -> proxy.sendCodeByBody(new SmsRequest("13800000001")))
+                .isInstanceOf(BizException.class);
+    }
+
+    /** 值来自请求参数：手机号这类个人信息不该明文躺在 Redis 里，任意长度的输入也不该原样变成 key。 */
+    @Test
+    void key_value_is_hashed_before_it_enters_the_redis_key() {
+        proxy.sendCode("13800000001");
+
+        assertThat(limiter.counts.keySet()).singleElement()
+                .satisfies(k -> assertThat(k).doesNotContain("13800000001").contains(":key:"));
+    }
+
+    /** 与 USER 维度取不到登录态时同理：全部落进同一个「空值」计数器会让互不相干的请求互相误伤。 */
+    @Test
+    void null_key_value_falls_back_to_client_ip() {
+        proxy.sendCodeByBody(new SmsRequest(null));
+
+        assertThat(limiter.counts.keySet()).singleElement()
+                .satisfies(k -> assertThat(k).endsWith(":ip:203.0.113.7"));
+    }
+
+    @Test
+    void blank_key_value_falls_back_to_client_ip() {
+        proxy.sendCode("  ");
+
+        assertThat(limiter.counts.keySet()).singleElement()
+                .satisfies(k -> assertThat(k).endsWith(":ip:203.0.113.7"));
+    }
+
+    @Test
+    void stacked_limits_each_keep_their_own_window_and_counter() {
+        proxy.sendCodeTwoWindows("13800000001");
+
+        assertThat(limiter.windows.values())
+                .containsExactlyInAnyOrder(Duration.ofSeconds(60), Duration.ofDays(1));
+    }
+
+    @Test
+    void the_tighter_of_stacked_limits_rejects_even_when_the_other_still_has_room() {
+        proxy.sendCodeTwoWindows("13800000001");
+        proxy.sendCodeTwoWindows("13800000001");
+
+        // 60 秒窗口允许 3 次，还有余量；按天的窗口只允许 2 次，第三次被它拦下
+        assertThatThrownBy(() -> proxy.sendCodeTwoWindows("13800000001"))
+                .isInstanceOf(BizException.class);
+    }
+
+    @Test
+    void key_dimension_without_an_expression_fails_loudly() {
+        assertThatThrownBy(() -> proxy.keyDimensionWithoutExpression("13800000001"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("key");
+    }
+
+    /** 写了 key 却忘了改 dimension，若静默按 IP 计数，「每个手机号 1 次」会悄悄变成「每个 IP 1 次」。 */
+    @Test
+    void key_expression_with_another_dimension_fails_loudly() {
+        assertThatThrownBy(() -> proxy.expressionWithoutKeyDimension("13800000001"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Dimension.KEY");
     }
 
     @Test

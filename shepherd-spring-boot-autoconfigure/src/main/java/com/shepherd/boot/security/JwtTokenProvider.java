@@ -81,11 +81,7 @@ public class JwtTokenProvider {
     @SuppressWarnings("unchecked")
     public LoginUser parseAccess(String token) {
         try {
-            Claims c = Jwts.parser().verifyWith(key).build()
-                    .parseSignedClaims(token).getPayload();
-            if (!"access".equals(c.get("type", String.class))) {
-                throw new BizException(CommonResultCode.TOKEN_INVALID);
-            }
+            Claims c = parseTyped(token, "access");
             List<String> roles = c.get("roles", List.class);
             if (roles == null) {
                 roles = List.of();
@@ -101,5 +97,30 @@ public class JwtTokenProvider {
         } catch (JwtException | IllegalArgumentException e) {
             throw new BizException(CommonResultCode.TOKEN_INVALID);
         }
+    }
+
+    /**
+     * 只验签与校验类型，不查 {@link LoginTokenStore}：jti 是否已被登出/踢下线由调用方判断，
+     * 刷新流程见 README「刷新 access token」。
+     */
+    public RefreshClaims parseRefresh(String token) {
+        try {
+            Claims c = parseTyped(token, "refresh");
+            return new RefreshClaims(Long.valueOf(c.getSubject()), c.getId());
+        } catch (ExpiredJwtException e) {
+            throw new BizException(CommonResultCode.TOKEN_EXPIRED);
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new BizException(CommonResultCode.TOKEN_INVALID);
+        }
+    }
+
+    /** 两种 token 同一把密钥签发，type 校验是唯一能把它们区分开的地方，不可省。 */
+    private Claims parseTyped(String token, String expectedType) {
+        Claims c = Jwts.parser().verifyWith(key).build()
+                .parseSignedClaims(token).getPayload();
+        if (!expectedType.equals(c.get("type", String.class))) {
+            throw new BizException(CommonResultCode.TOKEN_INVALID);
+        }
+        return c;
     }
 }

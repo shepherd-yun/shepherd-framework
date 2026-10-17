@@ -195,6 +195,33 @@ Long orgId = u.attributeLong("orgId");
 - token 过期之前值不会刷新。权限变了要么等过期，要么通过 `LoginTokenStore` 把用户踢下线。
 - 原来的四参构造器保留，attributes 为空时签出的 token 与之前完全一样。
 
+#### 刷新 access token
+
+Starter 只提供 `JwtTokenProvider.parseRefresh`（验签 + 校验 `type=refresh`），刷新接口本身写在下游——它要按 userId 重新加载用户，这属于用户体系。推荐写法（每次刷新都换一个新 jti，旧 refresh token 只能用一次）：
+
+```java
+@PostMapping("/auth/refresh")
+public TokenPair refresh(@RequestBody @Valid RefreshRequest req) {
+    RefreshClaims rc = jwtTokenProvider.parseRefresh(req.refreshToken()); // 过期 40102；伪造、拿 access token 来换 40101
+    if (!loginTokenStore.isValid(rc.userId(), rc.jti())) {               // 已登出 / 被踢 / 已被用过
+        throw new BizException(CommonResultCode.TOKEN_INVALID);
+    }
+    loginTokenStore.revoke(rc.userId(), rc.jti());
+
+    LoginUser user = userService.loadLoginUser(rc.userId(), UUID.randomUUID().toString()); // 重新加载 roles/attributes
+    loginTokenStore.save(user.userId(), user.jti(), refreshTtlSeconds);
+    return new TokenPair(jwtTokenProvider.generateAccessToken(user),
+            jwtTokenProvider.generateRefreshToken(user.userId(), user.jti()));
+}
+```
+
+- **`RefreshClaims` 只有 `userId` 和 `jti`**，不带 roles/attributes。刷新时要从库里重新加载这些字段，权限变更才能在刷新时生效。
+- **`parseRefresh` 不查 `LoginTokenStore`**，登出、踢人、重复使用都要靠上面那次 `isValid` 拦住，不能省。
+- **登录和刷新时，`save` 的 TTL 要用 refresh token 的有效期**（`shepherd.security.jwt.refresh-ttl-seconds`）。如果用 access token 的有效期，登录记录会比 refresh token 先过期，刷新必然失败。
+- 刷新接口要加进 `shepherd.security.permit-urls`：走到刷新这一步时，access token 通常已经过期了。
+- 失败码 `40101` / `40102` 都落在「凭证失效需登出」区间，前端刷新失败后直接清登录态即可。
+- `isValid` 与 `revoke` 不是原子操作，同一个 refresh token 并发请求两次可能都成功。需要严格一次性时，下游自己实现 `LoginTokenStore`，提供「校验并删除」的原子操作（比如用 Lua 脚本）。
+
 ### `shepherd.mybatis.*`（需 `mybatis-plus-spring-boot4-starter` 在 classpath）
 
 | 属性 | 默认值 | 说明 |
@@ -256,6 +283,33 @@ Starter 会把这些 Bean 按 `@Order` 排好，**分页插件固定放在最后
 | `shepherd.excel.task.ttl` | `24h` | 任务记录在 Redis 的存活时长 |
 | `shepherd.excel.task.endpoint-enabled` | `true` | 是否注册内置的任务查询端点 |
 | `shepherd.excel.task.endpoint-path` | `/excel/tasks` | 任务查询端点路径 |
+
+## 限流
+
+`@RateLimit` 标在 controller 方法上，`period` 时间窗内最多放行 `count` 次，超出抛 `42900`。前提是 AOP 与 Redis 同时在场（见「已知取舍」）。
+
+| `dimension` | 按什么计数 |
+|---|---|
+| `IP`（默认） | 客户端 IP（可伪造，见「已知取舍」） |
+| `USER` | 登录用户；取不到登录态时回落 IP |
+| `GLOBAL` | 全接口共用一个计数器 |
+| `KEY` | `key` 表达式的值，如手机号；值为 null 或空白时回落 IP |
+
+`KEY` 用于按业务参数限流，`key` 是 SpEL，对方法参数求值。同一方法可以叠加多个 `@RateLimit`，各自独立计数，全部满足才放行：
+
+```java
+@PostMapping("/auth/sms-code")
+@RateLimit(count = 1, period = 60, dimension = Dimension.KEY, key = "#req.phone", message = "发送太频繁，请 1 分钟后再试")
+@RateLimit(count = 10, period = 1, unit = TimeUnit.DAYS, dimension = Dimension.KEY, key = "#req.phone")
+@RateLimit(count = 30, period = 1, unit = TimeUnit.HOURS)   // 再按 IP 兜一层，防止换着手机号刷
+public void sendSmsCode(@RequestBody @Valid SmsCodeRequest req) { ... }
+```
+
+- **参数名依赖编译参数 `-parameters`**。继承 `shepherd-parent`（或 `spring-boot-starter-parent`）时已经开启；用方式 B 接入且自家 parent 没开时，改用下标写法 `#p0.phone`。
+- **表达式的值先取 SHA-256 再放进 Redis key**，手机号不会明文存在 Redis 里，超长输入也不会变成超长 key。
+- **写错会直接报错**：`dimension = KEY` 但没写 `key`，或者写了 `key` 但 `dimension` 不是 `KEY`，调用时都抛 `IllegalStateException`。第二种如果静默按 IP 计数，「每个手机号 1 次」就会悄悄变成「每个 IP 1 次」。
+- 叠加的多个限流里，前面的一个已经拒绝时，后面的不再计数。被拒绝的那次调用本身仍然计入拒绝它的那个窗口，这和单个 `@RateLimit` 的行为一致。
+- Redis key 形如 `shepherd:rate:{类名#方法}:{次数}/{窗口}:{维度值}`。key 里带「次数/窗口」，是为了让叠加的限流各自计数。
 
 ## 单号生成
 
@@ -589,7 +643,7 @@ shepherd:
 - **阿里云原生实现（`AliyunObjectStorage`）仅有 Mockito 单测覆盖**，无集成测试——阿里云 OSS 没有本地模拟器，真实凭证 IT 需要使用方按需自行验证。
 - backend 保留了 3 个 Testcontainers `*IT`（随本次迁移更新到编译通过），但不纳入本 Starter 的验收门槛，由使用方按需手动 `mvn verify` 运行。
 - **存储错误码按 HTTP 语义分散在 `400`/`404`/`500` 三段**，不再是模块连续段。这是有意的取舍：错误码首要服务于「前端该怎么处理」，模块归属由 message + traceId 在日志里追。
-- **`ClientIps` 依赖的 `X-Forwarded-For` / `X-Real-IP` 是客户端可伪造的请求头**。没有可信反向代理覆写它们时，`IP` 维度限流只是「防误触」量级的措施，不具备对抗恶意流量的安全强度。
+- **`ClientIps` 依赖的 `X-Forwarded-For` / `X-Real-IP` 是客户端可伪造的请求头**。没有可信反向代理覆写它们时，`IP` 维度限流（包括 `USER`、`KEY` 取不到值时回落到的 IP）只是「防误触」量级的措施，不具备对抗恶意流量的安全强度。
 - **Starter 的 `TaskDecorator` 标了 `@ConditionalOnMissingBean(TaskDecorator.class)`**：下游一旦自定义 `TaskDecorator`，Starter 让位，traceId 透传需下游自行实现。这是必须的——Boot 用 `ObjectProvider` 取唯一 `TaskDecorator`，两个并存会被**静默跳过**，透传双双失效且无任何报错。
 - **`@RepeatSubmit` / `@RateLimit` 需要 AOP 与 Redis 同时在场**（`spring-boot-starter-aspectj` + `spring-boot-starter-data-redis`）。缺任一则两个 Aspect 静默不装配——它们是可选增强能力，没有 fail-fast 的理由，但后果是注解写了却不生效，需自行确认依赖到位。
 - 明确不做：分片上传（由预签名直传绕过）、桶管理、图片处理（厂商特有能力，进 SPI 会撑爆接口）；Starter 不提供上传 REST 接口——鉴权、限流、落库需求各项目不同，那是业务方的事。
@@ -599,7 +653,7 @@ shepherd:
 本仓库是 root 聚合 pom + 10 个子模块的多模块工程，以下命令均在仓库根目录执行，覆盖全部模块：
 
 ```bash
-mvn test                     # 全量单测（236 个 / 47 个测试类），验收门槛
+mvn test                     # 全量单测（249 个 / 47 个测试类），验收门槛
 mvn -DskipTests install      # 装进本地仓库 11 个制品（10 子模块 + root 聚合 pom），供本机下游项目联调
 mvn deploy -P release        # 发布到 GitHub Packages（附带 sources + javadoc jar）
 ```

@@ -104,6 +104,52 @@ class JwtTokenProviderTest {
     }
 
     @Test
+    void refresh_token_round_trips_user_id_and_jti() {
+        JwtTokenProvider p = provider();
+
+        RefreshClaims parsed = p.parseRefresh(p.generateRefreshToken(42L, "jti-1"));
+
+        assertThat(parsed.userId()).isEqualTo(42L);
+        assertThat(parsed.jti()).isEqualTo("jti-1");
+    }
+
+    /** access token 寿命短、会出现在每个请求头里，泄露面大；拿它换新 token 等于把短期凭证变成长期凭证。 */
+    @Test
+    void access_token_is_rejected_by_parse_refresh() {
+        JwtTokenProvider p = provider();
+        String access = p.generateAccessToken(new LoginUser(42L, "alice", List.of(), "jti-1"));
+
+        assertThatThrownBy(() -> p.parseRefresh(access))
+                .isInstanceOf(BizException.class)
+                .extracting(e -> ((BizException) e).getErrorCode())
+                .isEqualTo(CommonResultCode.TOKEN_INVALID);
+    }
+
+    @Test
+    void expired_refresh_token_is_reported_as_expired() {
+        ShepherdSecurityProperties.Jwt props = jwtProps("test-secret-key-that-is-at-least-32-bytes-long!!");
+        props.setRefreshTtlSeconds(-1);
+        JwtTokenProvider p = new JwtTokenProvider(props);
+        String refresh = p.generateRefreshToken(42L, "jti-1");
+
+        assertThatThrownBy(() -> p.parseRefresh(refresh))
+                .isInstanceOf(BizException.class)
+                .extracting(e -> ((BizException) e).getErrorCode())
+                .isEqualTo(CommonResultCode.TOKEN_EXPIRED);
+    }
+
+    @Test
+    void refresh_token_signed_with_another_secret_is_invalid() {
+        JwtTokenProvider other = new JwtTokenProvider(jwtProps("another-secret-key-that-is-at-least-32-bytes!!"));
+        String forged = other.generateRefreshToken(42L, "jti-1");
+
+        assertThatThrownBy(() -> provider().parseRefresh(forged))
+                .isInstanceOf(BizException.class)
+                .extracting(e -> ((BizException) e).getErrorCode())
+                .isEqualTo(CommonResultCode.TOKEN_INVALID);
+    }
+
+    @Test
     void missing_secret_fails_fast_with_actionable_message() {
         assertThatThrownBy(() -> new JwtTokenProvider(jwtProps(null)))
                 .isInstanceOf(IllegalStateException.class)
