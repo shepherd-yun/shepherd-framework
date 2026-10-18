@@ -4,7 +4,7 @@
 
 **基线要求：Spring Boot 4.0.x / Java 21。** 105 个类是对着 Spring Framework 7 / Jackson 3（`tools.jackson.*`）编译的，低于此基线不保证可用（见下文「方式 B」的版本风险说明）。
 
-多模块 Maven 工程，基础包 `com.shepherd.boot`，版本统一为 `0.4.1`，发布在 [GitHub Packages](https://github.com/shepherd-yun/shepherd-framework/packages)：
+多模块 Maven 工程，基础包 `com.shepherd.boot`，版本统一为 `0.4.2`，发布在 [GitHub Packages](https://github.com/shepherd-yun/shepherd-framework/packages)：
 
 | 制品 | 用途 |
 |---|---|
@@ -68,7 +68,7 @@ export GITHUB_TOKEN=$(gh auth token)
 <parent>
   <groupId>com.shepherd</groupId>
   <artifactId>shepherd-parent</artifactId>
-  <version>0.4.1</version>
+  <version>0.4.2</version>
   <relativePath/>
 </parent>
 
@@ -98,7 +98,7 @@ export GITHUB_TOKEN=$(gh auth token)
     <dependency>
       <groupId>com.shepherd</groupId>
       <artifactId>shepherd-dependencies</artifactId>
-      <version>0.4.1</version>
+      <version>0.4.2</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
@@ -121,7 +121,7 @@ export GITHUB_TOKEN=$(gh auth token)
 </dependencies>
 ```
 
-两种方式下，`<dependencies>` 里都**不写任何第三方版本号**——按需要的能力挑选 starter（对象存储用 `shepherd-spring-boot-starter-oss`，Excel 用 `shepherd-spring-boot-starter-excel`），每个 starter 已经把自己需要的重型依赖（含 Redis、jjwt、MyBatis-Plus、AWS SDK、FastExcel 等）作为**非 optional 的普通依赖**传递给下游，版本由 BOM 统一钉住，下游 pom 里唯一出现的 `<version>` 就是自身的版本号与继承/import 的 `0.4.1`。
+两种方式下，`<dependencies>` 里都**不写任何第三方版本号**——按需要的能力挑选 starter（对象存储用 `shepherd-spring-boot-starter-oss`，Excel 用 `shepherd-spring-boot-starter-excel`），每个 starter 已经把自己需要的重型依赖（含 Redis、jjwt、MyBatis-Plus、AWS SDK、FastExcel 等）作为**非 optional 的普通依赖**传递给下游，版本由 BOM 统一钉住，下游 pom 里唯一出现的 `<version>` 就是自身的版本号与继承/import 的 `0.4.2`。
 
 ## 配置项
 
