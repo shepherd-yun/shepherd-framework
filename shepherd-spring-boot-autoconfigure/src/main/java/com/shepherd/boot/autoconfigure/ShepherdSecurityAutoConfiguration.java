@@ -3,6 +3,7 @@ package com.shepherd.boot.autoconfigure;
 import com.shepherd.boot.audit.AuditorProvider;
 import com.shepherd.boot.security.*;
 import io.jsonwebtoken.Jwts;
+import jakarta.servlet.DispatcherType;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -120,6 +121,11 @@ public class ShepherdSecurityAutoConfiguration {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // ASYNC / ERROR 是同一请求的再次分发，原始 REQUEST 分发已鉴过权。
+                        // JWT 过滤器（OncePerRequestFilter）不在这两种分发上重跑，无状态链也不保存
+                        // SecurityContext，不放行的话 SseEmitter / Callable / DeferredResult 的结果
+                        // 会在异步分发时被当成未登录拒掉，已经开始的流被掐断。
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers(permitUrls).permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

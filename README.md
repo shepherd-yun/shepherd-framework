@@ -587,6 +587,8 @@ Starter 的每个 Bean 均挂 `@ConditionalOnMissingBean`：下游声明同类�
 
 特别地，`SecurityFilterChain` 是**整体接管**——下游一旦声明自己的 `SecurityFilterChain` Bean，Starter 默认链完全不生效，`permit-urls` 等配置项对下游自定义链不再有任何作用（因为它们本来就只是 Starter 默认链读取的输入）。同理，`shepherd.security.permit-urls` 相对其默认值是**整体替换**，不是追加。
 
+默认链对 `ASYNC` / `ERROR` 分发一律放行（`dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()`）：它们是同一请求的再次分发，原始请求已鉴过权，而 JWT 过滤器不在这两种分发上重跑、无状态链也不保存 `SecurityContext`。少了这一行，`SseEmitter` / `Callable` / `DeferredResult` 的结果会在异步分发时被当成未登录拒掉，流式响应被掐断。**下游自定义 `SecurityFilterChain` 时请保留这一行。**
+
 ### 排除 springdoc + Swagger UI
 
 `shepherd-spring-boot-starter-web` 把 `springdoc-openapi-starter-webmvc-ui`（含 `org.webjars:swagger-ui`）作为**非 optional** 依赖带入，会进生产 fat jar。生产环境不需要 API 文档时，两件事都要做：
