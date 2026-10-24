@@ -4,9 +4,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.shepherd</groupId>
+        <groupId>com.shepherdyun</groupId>
         <artifactId>shepherd-parent</artifactId>
-        <version>0.4.2</version>
+        <version>0.5.0</version>
         <relativePath>../shepherd-parent</relativePath>
     </parent>
 
@@ -16,9 +16,14 @@
     <name>shepherd-spring-boot-starter-oss</name>
     <description>对象存储：S3 兼容实现（MinIO / R2 / S3 / 阿里云 S3 兼容模式）</description>
 
+    <properties>
+        <!-- 无源码，发 Central 时由 shepherd-parent 的 central profile 补空 sources/javadoc jar -->
+        <shepherd.empty-docs-jar.phase>package</shepherd.empty-docs-jar.phase>
+    </properties>
+
     <dependencies>
         <dependency>
-            <groupId>com.shepherd</groupId>
+            <groupId>com.shepherdyun</groupId>
             <artifactId>shepherd-spring-boot-autoconfigure</artifactId>
         </dependency>
         <dependency>

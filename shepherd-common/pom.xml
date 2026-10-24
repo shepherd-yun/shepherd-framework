@@ -4,9 +4,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.shepherd</groupId>
+        <groupId>com.shepherdyun</groupId>
         <artifactId>shepherd-parent</artifactId>
-        <version>0.4.2</version>
+        <version>0.5.0</version>
         <relativePath>../shepherd-parent</relativePath>
     </parent>
 

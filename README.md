@@ -4,7 +4,7 @@
 
 **基线要求：Spring Boot 4.0.x / Java 21。** 105 个类是对着 Spring Framework 7 / Jackson 3（`tools.jackson.*`）编译的，低于此基线不保证可用（见下文「方式 B」的版本风险说明）。
 
-多模块 Maven 工程，基础包 `com.shepherd.boot`，版本统一为 `0.4.2`，发布在 [GitHub Packages](https://github.com/shepherd-yun/shepherd-framework/packages)：
+多模块 Maven 工程，groupId 与基础包分别为 `com.shepherdyun` / `com.shepherdyun.boot`，版本统一为 `0.5.0`，发布在 [Maven Central](https://central.sonatype.com/namespace/com.shepherdyun)：
 
 | 制品 | 用途 |
 |---|---|
@@ -22,67 +22,32 @@
 
 ## 使用方式
 
-### 1. 配置 GitHub Packages 凭证
+> **从 0.4.x 升级**：0.5.0 起 groupId 由 `com.shepherd` 改为 `com.shepherdyun`，Java 包由 `com.shepherd.boot` 改为 `com.shepherdyun.boot`。下游需要同时改 pom 坐标与 import（`com.shepherd.boot.` 全局替换为 `com.shepherdyun.boot.` 即可），并删掉原先为 GitHub Packages 声明的 `<repository>` 与 settings.xml 里的 `github` server。0.4.x 及更早版本仍留在 GitHub Packages，不会迁到 Central。另外，`shepherd-parent` 不再声明 `distributionManagement`：以前继承它的业务项目会顺带拿到一个指向本框架 GitHub Packages 的发布地址，现在业务项目要 `mvn deploy` 需自行声明。
 
-GitHub Packages 的 Maven 仓库**读取也要求认证**（即便包是公开的）。在 `~/.m2/settings.xml` 里加一个 server（token 建议走环境变量，不要写死进文件）：
-
-```xml
-<servers>
-  <server>
-    <id>github</id>
-    <username>你的 GitHub 用户名</username>
-    <password>${env.GITHUB_TOKEN}</password>
-  </server>
-</servers>
-```
-
-token 需要 `read:packages` 权限（发布方另需 `write:packages`）。用 gh CLI 最省事：
-
-```bash
-gh auth refresh -h github.com -s read:packages   # 发布方再加 -s write:packages
-export GITHUB_TOKEN=$(gh auth token)
-```
-
-### 2. 在下游项目声明仓库与依赖
-
-不管选哪种接入方式，都要先声明仓库（读取 GitHub Packages 同样需要认证，见上一步）：
-
-```xml
-<repositories>
-  <repository>
-    <id>github</id>
-    <url>https://maven.pkg.github.com/shepherd-yun/shepherd-framework</url>
-    <releases><enabled>true</enabled></releases>
-    <snapshots><enabled>true</enabled></snapshots>
-  </repository>
-</repositories>
-```
-
-`<repository>` 的 `id` 必须与 settings.xml 里 server 的 `id` 一致（都叫 `github`），否则 Maven 拿不到凭证。
-
+制品在 Maven Central，**不需要声明仓库、不需要任何凭证**；国内的阿里云等公共镜像也会同步 Central。
 然后二选一：
 
 **方式 A：继承 `shepherd-parent`（推荐）**——版本收敛、编译器/Lombok/MapStruct 注解处理器顺序、source jar 等构建约定一次性拿到：
 
 ```xml
 <parent>
-  <groupId>com.shepherd</groupId>
+  <groupId>com.shepherdyun</groupId>
   <artifactId>shepherd-parent</artifactId>
-  <version>0.4.2</version>
+  <version>0.5.0</version>
   <relativePath/>
 </parent>
 
 <dependencies>
   <dependency>
-    <groupId>com.shepherd</groupId>
+    <groupId>com.shepherdyun</groupId>
     <artifactId>shepherd-spring-boot-starter-web</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.shepherd</groupId>
+    <groupId>com.shepherdyun</groupId>
     <artifactId>shepherd-spring-boot-starter-mybatis</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.shepherd</groupId>
+    <groupId>com.shepherdyun</groupId>
     <artifactId>shepherd-spring-boot-starter-security</artifactId>
   </dependency>
 </dependencies>
@@ -96,9 +61,9 @@ export GITHUB_TOKEN=$(gh auth token)
 <dependencyManagement>
   <dependencies>
     <dependency>
-      <groupId>com.shepherd</groupId>
+      <groupId>com.shepherdyun</groupId>
       <artifactId>shepherd-dependencies</artifactId>
-      <version>0.4.2</version>
+      <version>0.5.0</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
@@ -107,21 +72,21 @@ export GITHUB_TOKEN=$(gh auth token)
 
 <dependencies>
   <dependency>
-    <groupId>com.shepherd</groupId>
+    <groupId>com.shepherdyun</groupId>
     <artifactId>shepherd-spring-boot-starter-web</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.shepherd</groupId>
+    <groupId>com.shepherdyun</groupId>
     <artifactId>shepherd-spring-boot-starter-mybatis</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.shepherd</groupId>
+    <groupId>com.shepherdyun</groupId>
     <artifactId>shepherd-spring-boot-starter-security</artifactId>
   </dependency>
 </dependencies>
 ```
 
-两种方式下，`<dependencies>` 里都**不写任何第三方版本号**——按需要的能力挑选 starter（对象存储用 `shepherd-spring-boot-starter-oss`，Excel 用 `shepherd-spring-boot-starter-excel`），每个 starter 已经把自己需要的重型依赖（含 Redis、jjwt、MyBatis-Plus、AWS SDK、FastExcel 等）作为**非 optional 的普通依赖**传递给下游，版本由 BOM 统一钉住，下游 pom 里唯一出现的 `<version>` 就是自身的版本号与继承/import 的 `0.4.2`。
+两种方式下，`<dependencies>` 里都**不写任何第三方版本号**——按需要的能力挑选 starter（对象存储用 `shepherd-spring-boot-starter-oss`，Excel 用 `shepherd-spring-boot-starter-excel`），每个 starter 已经把自己需要的重型依赖（含 Redis、jjwt、MyBatis-Plus、AWS SDK、FastExcel 等）作为**非 optional 的普通依赖**传递给下游，版本由 BOM 统一钉住，下游 pom 里唯一出现的 `<version>` 就是自身的版本号与继承/import 的 `0.5.0`。
 
 ## 配置项
 
@@ -595,7 +560,7 @@ Starter 的每个 Bean 均挂 `@ConditionalOnMissingBean`：下游声明同类�
 
 ```xml
 <dependency>
-  <groupId>com.shepherd</groupId>
+  <groupId>com.shepherdyun</groupId>
   <artifactId>shepherd-spring-boot-starter-web</artifactId>
   <exclusions>
     <exclusion>
@@ -655,23 +620,41 @@ shepherd:
 本仓库是 root 聚合 pom + 10 个子模块的多模块工程，以下命令均在仓库根目录执行，覆盖全部模块：
 
 ```bash
-mvn test                     # 全量单测（250 个 / 47 个测试类），验收门槛
+mvn test                     # 全量单测，验收门槛
 mvn -DskipTests install      # 装进本地仓库 11 个制品（10 子模块 + root 聚合 pom），供本机下游项目联调
-mvn deploy -P release        # 发布到 GitHub Packages（附带 sources + javadoc jar）
+mvn deploy -P central        # 签名并发布到 Maven Central（附带 sources + javadoc jar）
 ```
 
-`release` profile 定义在 `shepherd-parent` 里，只对继承它的模块生效；`shepherd-dependencies` 与 root 聚合 pom 不继承 `shepherd-parent`，不触发 javadoc/sources 执行。**实测结论：javadoc 对 `packaging=pom` 的模块（`shepherd-parent` 自身）不报错**——`javadoc:jar` 无源码可处理时静默跳过，`BUILD SUCCESS`，无需为它加 `<skip>` 之类的特殊配置。5 个薄 starter 没有 `src/`，同理静默跳过，不产出 sources/javadoc jar，这也是预期行为而非缺陷。
+`central` profile 在 root 聚合 pom、`shepherd-dependencies`、`shepherd-parent` 里**各有一份**：三者继承链互不相通，而 `central-publishing-maven-plugin` 要求 reactor 里每个模块的 deploy 都由它接管，漏一处那个模块就会回落到 `maven-deploy-plugin` 并因没有 `distributionManagement` 失败。插件会把 11 个制品打成一个 bundle 一次性上传，`autoPublish=true` + `waitUntil=published`，命令返回成功即已发布。
 
-发布前置：`export GITHUB_TOKEN=$(gh auth token)`，且该 token 含 `write:packages`（`gh auth refresh -h github.com -s write:packages`）。
+Central 要求非 pom 打包的制品必须带 `-sources.jar` 与 `-javadoc.jar`。5 个薄 starter 没有源码，source/javadoc 插件不会产出 jar，因此它们把 `shepherd.empty-docs-jar.phase` 置为 `package`，由 `shepherd-parent` 的 `central` profile 补两个空 jar（Spring Boot 官方薄 starter 同此）。
 
-也可以打 tag 让 CI 发布（`.github/workflows/publish.yml`，用 Actions 内置的 `GITHUB_TOKEN`，无需本地凭证）：
+### 本机发布的一次性准备
+
+1. **命名空间**：在 [central.sonatype.com](https://central.sonatype.com) 的 Namespaces 里添加 `com.shepherdyun`，按提示在 `shepherdyun.com` 的 DNS（Cloudflare）加一条 TXT 记录完成验证。
+2. **Central 凭证**：View Account → Generate User Token，写进 `~/.m2/settings.xml`：
+   ```xml
+   <server>
+     <id>central</id>
+     <username>token 用户名</username>
+     <password>token 密码</password>
+   </server>
+   ```
+3. **GPG 密钥**：`gpg --full-generate-key` 生成后，把公钥发到 keyserver，Central 用它校验签名：
+   ```bash
+   gpg --keyserver keyserver.ubuntu.com --send-keys <KEY_ID>
+   ```
+   私钥与口令务必备份，丢了就无法再以同一身份签名。
+
+### CI 发布
+
+打 `v*` tag 会触发 `.github/workflows/publish.yml` 跑单测并发布。需要先在仓库 Secrets 里配置 `CENTRAL_TOKEN_USERNAME`、`CENTRAL_TOKEN_PASSWORD`、`GPG_PRIVATE_KEY`（`gpg --armor --export-secret-keys <KEY_ID>` 的完整输出）、`GPG_PASSPHRASE`。
 
 ```bash
-mvn versions:set -DnewVersion=0.1.0 && mvn versions:commit
-git commit -am "release: 0.1.0" && git tag v0.1.0 && git push --follow-tags
+mvn versions:set -DnewVersion=0.5.1 && mvn versions:commit
+git commit -am "chore(release): 版本号改为 0.5.1" && git tag v0.5.1 && git push --follow-tags
 ```
 
-**GitHub Packages 不允许覆盖同名 release 版本**（SNAPSHOT 可以反复推）。发布正式版后若要改动，必须递增版本号。
+`versions:set` 会连 `shepherd-parent` 里 import BOM 的字面量版本一起改；手改时这两处必须同动。
 
-本机环境注意（与 yun 项目同）：mise 把全局 `java` 钉在 zulu-8，非交互 shell 里需显式指定
-`JAVA_HOME=/Users/yun/.local/share/mise/installs/java/zulu-21.50.19.0 mvn ...`；用本机 Maven 配置的阿里云镜像时带上 `-P home`。
+**Central 上的版本发布后不可删除、不可覆盖**。发错只能递增版本号，所以第一次走流程建议先发 `-RC1` 之类的预发布版本。用本机 Maven 配置的阿里云镜像时带上 `-P home`。
