@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project child.project.url.inherit.append.path="false" xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -10,13 +10,42 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.shepherd</groupId>
+    <groupId>com.shepherdyun</groupId>
     <artifactId>shepherd-parent</artifactId>
-    <version>0.4.2</version>
+    <version>0.5.0</version>
     <packaging>pom</packaging>
 
     <name>shepherd-parent</name>
     <description>业务项目继承的父 pom：版本收敛 + 构建约定</description>
+    <!-- 元数据必须在这里重新声明：不写的话本框架各模块会从 spring-boot-starter-parent
+         继承 Spring 官方的 url/developers/scm，Central 校验能过但信息全是错的。
+         append.path=false 让子模块原样继承，不拼成 .../shepherd-framework/shepherd-common。 -->
+    <url>https://github.com/shepherd-yun/shepherd-framework</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>shepherd-yun</id>
+            <name>yun</name>
+            <url>https://github.com/shepherd-yun</url>
+        </developer>
+    </developers>
+
+    <scm child.scm.connection.inherit.append.path="false"
+         child.scm.developerConnection.inherit.append.path="false"
+         child.scm.url.inherit.append.path="false">
+        <connection>scm:git:https://github.com/shepherd-yun/shepherd-framework.git</connection>
+        <developerConnection>scm:git:git@github.com:shepherd-yun/shepherd-framework.git</developerConnection>
+        <url>https://github.com/shepherd-yun/shepherd-framework</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <properties>
         <java.version>21</java.version>
@@ -26,18 +55,18 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>com.shepherd</groupId>
+                <groupId>com.shepherdyun</groupId>
                 <artifactId>shepherd-dependencies</artifactId>
                 <!-- 必须写字面量版本，不能用 ${project.version}。
                      本段会被下游业务项目通过继承拿到，而继承时的属性插值发生在
                      「子 pom 的上下文」——${project.version} 会解析成业务项目自己的版本
                      （如 backend 的 0.0.1），导致 Maven 去找不存在的
-                     com.shepherd:shepherd-dependencies:pom:0.0.1。
+                     com.shepherdyun:shepherd-dependencies:pom:0.0.1。
                      framework 自身的 reactor 里所有模块同版本，会掩盖这个 bug。
                      升版本时这里和上面的 <version> 要一起改：用 mvn versions:set -DnewVersion=...
                      升版本，其 processDependencyManagement 默认为 true，会连这处一起改；
                      手改 <version> 时两处必须同动，不能只改一处。 -->
-                <version>0.4.2</version>
+                <version>0.5.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -147,18 +176,96 @@
                 </plugins>
             </build>
         </profile>
+
+        <!-- 发布本框架到 Maven Central：mvn deploy -P central（含 javadoc，无需再叠加 release）。
+             下游业务项目继承本 parent 也会继承此 profile，但不显式 -P central 就不会触发；
+             签名与 Central 上传因此与上面下游也会用到的 release 分开，而不是塞进 release。 -->
+        <profile>
+            <id>central</id>
+            <properties>
+                <!-- 薄 starter 没有源码，source/javadoc 插件都会直接跳过不产出 jar，
+                     但 Central 要求非 pom 打包的制品必须带 -sources.jar 与 -javadoc.jar。
+                     薄 starter 把它置为 package，由下面的 maven-jar-plugin 补两个空 jar——
+                     Spring Boot 官方薄 starter 发到 Central 的也是空 jar。
+                     用 phase 而不是 skip 开关：maven-jar-plugin 没有 skip 参数，写了会被静默忽略。 -->
+                <shepherd.empty-docs-jar.phase>none</shepherd.empty-docs-jar.phase>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>empty-sources-jar</id>
+                                <phase>${shepherd.empty-docs-jar.phase}</phase>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                                <configuration>
+                                    <classifier>sources</classifier>
+                                    <classesDirectory>${project.build.directory}/empty-docs</classesDirectory>
+                                    <skipIfEmpty>false</skipIfEmpty>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>empty-javadoc-jar</id>
+                                <phase>${shepherd.empty-docs-jar.phase}</phase>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                                <configuration>
+                                    <classifier>javadoc</classifier>
+                                    <classesDirectory>${project.build.directory}/empty-docs</classesDirectory>
+                                    <skipIfEmpty>false</skipIfEmpty>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <doclint>none</doclint>
+                            <quiet>true</quiet>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.11.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 
-    <distributionManagement>
-        <repository>
-            <id>github</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/shepherd-yun/shepherd-framework</url>
-        </repository>
-        <snapshotRepository>
-            <id>github</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/shepherd-yun/shepherd-framework</url>
-        </snapshotRepository>
-    </distributionManagement>
 </project>

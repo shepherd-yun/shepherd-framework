@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目性质
 
-多模块 Maven 工程（root 聚合 pom + 10 个子模块），基础包 `com.shepherd.boot`，**没有可运行的应用**——没有 `@SpringBootApplication`、没有 `application.yaml`，一切验证都靠单测。11 个制品（10 子模块 + root 聚合 pom）发布到 GitHub Packages 供下游业务项目引用。
+多模块 Maven 工程（root 聚合 pom + 10 个子模块），基础包 `com.shepherdyun.boot`，**没有可运行的应用**——没有 `@SpringBootApplication`、没有 `application.yaml`，一切验证都靠单测。11 个制品（10 子模块 + root 聚合 pom）以 groupId `com.shepherdyun` 发布到 Maven Central 供下游业务项目引用（0.4.x 及以前是 `com.shepherd`，在 GitHub Packages）。
 
 | 子模块 | 职责 |
 |---|---|
 | `shepherd-dependencies` | BOM，版本清单，甲方已有自家 parent 时 import |
-| `shepherd-parent` | 业务项目继承的父 pom：import 上面的 BOM + 构建约定（编译器/Lombok/MapStruct 注解处理器顺序、source jar、release profile） |
+| `shepherd-parent` | 业务项目继承的父 pom：import 上面的 BOM + 构建约定（编译器/Lombok/MapStruct 注解处理器顺序、source jar、release profile、central 发布 profile） |
 | `shepherd-common` | 零外部依赖的契约类型（`Result`/`PageResult`/`BizException`/错误码基类/审计 SPI），Java/JVM 环境都能编译 |
 | `shepherd-common-mybatis` | 依赖 MyBatis-Plus 的公共类型（`BaseEntity`/`MpPages`/审计填充），从 `shepherd-common` 再细分出来是因为它需要 MyBatis-Plus 这个外部依赖 |
 | `shepherd-spring-boot-autoconfigure` | 全部 `@AutoConfiguration` 实现与需要 Spring 容器的业务代码（web/security/mybatis/storage/excel/serial-no/openapi/rate-limit），依赖全走 `optional=true`，由薄 starter 聚合传递 |
@@ -24,16 +24,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 常用命令
 
 ```bash
-mvn -P home test                          # 全量单测（当前 250 个 / 47 个测试类），唯一验收门槛
+mvn -P home test                          # 全量单测（当前 253 个），唯一验收门槛
 mvn -P home test -Dtest=ExcelImporterTest # 单个测试类
 mvn -P home test -Dtest='ExcelImporterTest#reads_rows_in_batches_and_reports_success'  # 单个方法
 mvn -P home -DskipTests install           # 装进本地仓库，供本机下游项目联调
-mvn -P home deploy -P release             # 发布到 GitHub Packages（附 sources + javadoc jar）
+mvn -P home,central deploy                # 签名并发布到 Maven Central（附 sources + javadoc jar）
 ```
 
 - `-P home` 是本机 `~/.m2/settings.xml` 里的阿里云公共镜像 profile；不在家庭网络或 CI 上省略它（CI 跑的是 `mvn -B verify`）。
 - 本仓库根目录有 `mise.toml` 钉住 `java = zulu-21`，直接 `mvn` 即可，无需再手动导 `JAVA_HOME`（README「开发与发布」小节末尾那条 JAVA_HOME 提示是迁出聚合工程前的遗留说明）。
-- 发布前置：`export GITHUB_TOKEN=$(gh auth token)` 且 token 含 `write:packages`。GitHub Packages **不允许覆盖同名 release 版本**，正式版发出去后改动必须递增版本号。打 `v*` tag 推上去会触发 `.github/workflows/publish.yml` 自动发布。
+- 发布前置：`~/.m2/settings.xml` 里有 `id=central` 的 server（Central Portal 生成的 user token），本机 gpg 有签名私钥且公钥已上传 keyserver。Central **不允许删除或覆盖已发布版本**，发出去后改动必须递增版本号。打 `v*` tag 推上去会触发 `.github/workflows/publish.yml` 自动发布（需要仓库 Secrets：`CENTRAL_TOKEN_USERNAME` / `CENTRAL_TOKEN_PASSWORD` / `GPG_PRIVATE_KEY` / `GPG_PASSPHRASE`）。
+- 验证发布配置时**别指望 `-Dcentral.skipPublishing=true` 能拦住上传**：实测 0.11.0 下它不生效，插件照样会上传。只想看 bundle 内容就跑 `package` 看各模块 `target/`，不要跑 `deploy`。
 
 ## 技术栈里容易踩错的几点
 
@@ -58,7 +59,7 @@ mvn -P home deploy -P release             # 发布到 GitHub Packages（附 sour
 
 ## 自动配置架构
 
-8 个 `@AutoConfiguration` 类全在 `com.shepherd.boot.autoconfigure`，注册在
+8 个 `@AutoConfiguration` 类全在 `com.shepherdyun.boot.autoconfigure`，注册在
 `src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`。
 **新增自动配置类必须手动加进这个文件**，否则永远不生效且没有任何报错。
 
@@ -105,7 +106,7 @@ mvn -P home deploy -P release             # 发布到 GitHub Packages（附 sour
 ## 新增一项能力时的清单
 
 0. **先判断新类放 `shepherd-common`（或 `shepherd-common-mybatis`）还是 `shepherd-spring-boot-autoconfigure`**——按上面「依赖策略」的两条准入规则；大多数新能力的实现类会落在 autoconfigure，只有真正的契约类型（下游会直接 import 的 DTO/异常/SPI）才下沉到 common。
-1. 在 `com.shepherd.boot.<能力>` 下建包，补 `package-info.java` 的 `@NullMarked`。
+1. 在 `com.shepherdyun.boot.<能力>` 下建包，补 `package-info.java` 的 `@NullMarked`。
 2. 重依赖加进 `shepherd-spring-boot-autoconfigure` 的 pom 并标 `optional=true`，版本收进 `shepherd-dependencies` 的 `dependencyManagement`。
 3. 写 `Shepherd<能力>AutoConfiguration`，每个 Bean 挂 `@ConditionalOnMissingBean`，按上面三种处置选一种应对缺依赖。
 4. 注册进 `AutoConfiguration.imports`。
@@ -117,5 +118,7 @@ mvn -P home deploy -P release             # 发布到 GitHub Packages（附 sour
 
 ## 多模块改造踩坑记录
 
-- **`shepherd-parent` 里 import `shepherd-dependencies` 这个 BOM，版本必须写字面量（`<version>0.4.2</version>`），不能写 `${project.version}`。** 原因是属性插值发生在「使用这段 XML 的 pom」的上下文，而不是定义它的 `shepherd-parent` 自身的上下文：`shepherd-parent` 被业务项目（如 `yun/backend`）继承后，这段 `dependencyManagement` 是业务项目 effective pom 的一部分，此时 `${project.version}` 解析成的是**业务项目自己的版本**（比如 backend 的 `0.0.1`），Maven 会去找根本不存在的 `com.shepherd:shepherd-dependencies:pom:0.0.1` 并直接报错。这个 bug 在 framework 自身仓库内极难发现——reactor 里所有模块（含 `shepherd-dependencies` 本身）版本恒相同，`${project.version}` 在 framework 内部 build 时凑巧总解析对，只有让真正的下游项目（版本号不同）去继承时才会炸。升版本时 `shepherd-parent` 的 `<version>` 与这处字面量要一起改，容易漏改，值得留意。
+- **`shepherd-parent` 里 import `shepherd-dependencies` 这个 BOM，版本必须写字面量（`<version>0.5.0</version>`），不能写 `${project.version}`。** 原因是属性插值发生在「使用这段 XML 的 pom」的上下文，而不是定义它的 `shepherd-parent` 自身的上下文：`shepherd-parent` 被业务项目（如 `yun/backend`）继承后，这段 `dependencyManagement` 是业务项目 effective pom 的一部分，此时 `${project.version}` 解析成的是**业务项目自己的版本**（比如 backend 的 `0.0.1`），Maven 会去找根本不存在的 `com.shepherdyun:shepherd-dependencies:pom:0.0.1` 并直接报错。这个 bug 在 framework 自身仓库内极难发现——reactor 里所有模块（含 `shepherd-dependencies` 本身）版本恒相同，`${project.version}` 在 framework 内部 build 时凑巧总解析对，只有让真正的下游项目（版本号不同）去继承时才会炸。升版本时 `shepherd-parent` 的 `<version>` 与这处字面量要一起改，容易漏改，值得留意。
 - **5 个薄 starter 必须是 jar 打包（即不声明 `<packaging>`，用 Maven 默认值），不能是 `packaging=pom`。** `packaging=pom` 的模块只产出一个 `.pom` 文件，没有 `.jar`；下游一条普通 `<dependency>` 声明去解析这种坐标时，Maven 找不到 jar 会报错（`.pom` 只能被 `import`/继承，不能被 `<dependency>` 当依赖坐标使用）。`pom` 打包只适用于两类场景：BOM（`shepherd-dependencies`，靠 `<scope>import</scope>` 使用）与业务项目继承的父 pom（`shepherd-parent`，靠 `<parent>` 使用）。薄 starter 虽然自己没有 `src/`、只是一堆 `<dependency>` 的聚合器，但它要被下游当**普通依赖**引用，所以必须是 jar——这与 Spring Boot 官方的 `spring-boot-starter-web` 等薄 starter 是同一个打包类型。
+- **`central` profile 在 root 聚合 pom、`shepherd-dependencies`、`shepherd-parent` 三处各有一份，改插件版本或配置要三处同改。** 三者继承链互不相通，而 `central-publishing-maven-plugin` 必须接管 reactor 里每个模块的 deploy，漏一处那个模块就回落到 `maven-deploy-plugin`，因为没有 `distributionManagement` 而失败。签名与上传特意不放进 `release` profile：下游业务项目继承 `shepherd-parent` 时也会继承 `release`，放进去的话他们 `-P release` 就会去签名并往 Central 推。
+- **薄 starter 的空 sources/javadoc jar 用 `shepherd.empty-docs-jar.phase` 属性开关（默认 `none`，starter 里设成 `package`），不能用 `<skip>`**：`maven-jar-plugin` 没有 `skip` 参数，写了会被静默忽略，结果 `shepherd-parent`（pom 打包）也会多出两个空 jar。新建薄 starter 时记得在它的 pom 里加上这个属性，否则 Central 校验会因缺 javadoc 拒收。

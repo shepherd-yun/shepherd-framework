@@ -10,9 +10,9 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.shepherd</groupId>
+    <groupId>com.shepherdyun</groupId>
     <artifactId>shepherd-framework</artifactId>
-    <version>0.4.2</version>
+    <version>0.5.0</version>
     <packaging>pom</packaging>
 
     <name>shepherd-framework</name>
@@ -56,16 +56,43 @@
         <module>shepherd-spring-boot-starter-excel</module>
     </modules>
 
-    <distributionManagement>
-        <repository>
-            <id>github</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/shepherd-yun/shepherd-framework</url>
-        </repository>
-        <snapshotRepository>
-            <id>github</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/shepherd-yun/shepherd-framework</url>
-        </snapshotRepository>
-    </distributionManagement>
+    <profiles>
+        <!-- 发布到 Maven Central：mvn deploy -P central。
+             同名 profile 在 shepherd-dependencies 与 shepherd-parent 里各有一份——
+             三者继承链互不相通（本 pom 与 BOM 都不继承 shepherd-parent），
+             而 central-publishing 插件要求 reactor 里每个模块都由它接管 deploy，
+             少一处，那个模块就会回落到 maven-deploy-plugin 并因没有 distributionManagement 而失败。 -->
+        <profile>
+            <id>central</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.11.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

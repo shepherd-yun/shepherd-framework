@@ -6,13 +6,37 @@
     <!-- 有意不设 parent：本 BOM 被 shepherd-parent import，继承回去会成环；
          且 import 生效的是有效 pom，继承 spring-boot-starter-parent 会把 Boot 的整套
          dependencyManagement 混进来，使下游分不清版本来源。官方 spring-boot-dependencies 同此。 -->
-    <groupId>com.shepherd</groupId>
+    <groupId>com.shepherdyun</groupId>
     <artifactId>shepherd-dependencies</artifactId>
-    <version>0.4.2</version>
+    <version>0.5.0</version>
     <packaging>pom</packaging>
 
     <name>shepherd-dependencies</name>
     <description>shepherd-framework 版本清单（BOM）</description>
+    <url>https://github.com/shepherd-yun/shepherd-framework</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>shepherd-yun</id>
+            <name>yun</name>
+            <url>https://github.com/shepherd-yun</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/shepherd-yun/shepherd-framework.git</connection>
+        <developerConnection>scm:git:git@github.com:shepherd-yun/shepherd-framework.git</developerConnection>
+        <url>https://github.com/shepherd-yun/shepherd-framework</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <properties>
         <mybatis-plus.version>3.5.16</mybatis-plus.version>
@@ -29,42 +53,42 @@
         <dependencies>
             <!-- ===== 本框架制品 ===== -->
             <dependency>
-                <groupId>com.shepherd</groupId>
+                <groupId>com.shepherdyun</groupId>
                 <artifactId>shepherd-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.shepherd</groupId>
+                <groupId>com.shepherdyun</groupId>
                 <artifactId>shepherd-common-mybatis</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.shepherd</groupId>
+                <groupId>com.shepherdyun</groupId>
                 <artifactId>shepherd-spring-boot-autoconfigure</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.shepherd</groupId>
+                <groupId>com.shepherdyun</groupId>
                 <artifactId>shepherd-spring-boot-starter-web</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.shepherd</groupId>
+                <groupId>com.shepherdyun</groupId>
                 <artifactId>shepherd-spring-boot-starter-mybatis</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.shepherd</groupId>
+                <groupId>com.shepherdyun</groupId>
                 <artifactId>shepherd-spring-boot-starter-security</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.shepherd</groupId>
+                <groupId>com.shepherdyun</groupId>
                 <artifactId>shepherd-spring-boot-starter-oss</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.shepherd</groupId>
+                <groupId>com.shepherdyun</groupId>
                 <artifactId>shepherd-spring-boot-starter-excel</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -152,16 +176,39 @@
         </dependencies>
     </dependencyManagement>
 
-    <distributionManagement>
-        <repository>
-            <id>github</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/shepherd-yun/shepherd-framework</url>
-        </repository>
-        <snapshotRepository>
-            <id>github</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/shepherd-yun/shepherd-framework</url>
-        </snapshotRepository>
-    </distributionManagement>
+    <profiles>
+        <!-- 发布到 Maven Central，见根 pom 同名 profile 的说明。 -->
+        <profile>
+            <id>central</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.11.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
