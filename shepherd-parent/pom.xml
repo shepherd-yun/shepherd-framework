@@ -12,7 +12,7 @@
 
     <groupId>com.shepherdyun</groupId>
     <artifactId>shepherd-parent</artifactId>
-    <version>0.5.0</version>
+    <version>0.5.0-RC1</version>
     <packaging>pom</packaging>
 
     <name>shepherd-parent</name>
@@ -66,7 +66,7 @@
                      升版本时这里和上面的 <version> 要一起改：用 mvn versions:set -DnewVersion=...
                      升版本，其 processDependencyManagement 默认为 true，会连这处一起改；
                      手改 <version> 时两处必须同动，不能只改一处。 -->
-                <version>0.5.0</version>
+                <version>0.5.0-RC1</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
