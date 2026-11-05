@@ -11,6 +11,7 @@ import com.shepherdyun.boot.web.cors.ShepherdCorsConfigurationSource;
 import com.shepherdyun.boot.web.filter.AccessLogFilter;
 import com.shepherdyun.boot.web.filter.TraceIdFilter;
 import jakarta.validation.ConstraintViolationException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -25,6 +26,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.module.SimpleModule;
 import tools.jackson.databind.ser.std.ToStringSerializer;
@@ -62,12 +64,33 @@ public class ShepherdWebAutoConfiguration {
         return new MdcTaskDecorator();
     }
 
-    /** 默认关闭：前端 dev 走 vite proxy 同源、生产多为同域部署。CORS 必须显式开启。 */
+    /**
+     * 默认关闭：前端 dev 走 vite proxy 同源、生产多为同域部署。CORS 必须显式开启。
+     * <p>
+     * Bean 名必须是 corsConfigurationSource：Spring Security 的 {@code .cors()} 只按这个名字查找。
+     * 也只能按名字让位，不能按类型：Spring MVC 的 mvcHandlerMappingIntrospector 同样实现
+     * CorsConfigurationSource，按类型判断时这个 Bean 永远建不出来。
+     */
     @Bean
-    @ConditionalOnMissingBean(CorsConfigurationSource.class)
+    @ConditionalOnMissingBean(name = "corsConfigurationSource")
     @ConditionalOnProperty(prefix = "shepherd.web.cors", name = "enabled", havingValue = "true")
-    public CorsConfigurationSource shepherdCorsConfigurationSource(ShepherdWebProperties properties) {
+    public CorsConfigurationSource corsConfigurationSource(ShepherdWebProperties properties) {
         return ShepherdCorsConfigurationSource.from(properties.getCors());
+    }
+
+    /**
+     * 没有安全链时（只用 starter-web）没人消费上面的 Bean，由这个过滤器生效；排在 TraceIdFilter 之后。
+     * 有安全链时由它的 {@code .cors()} 负责，不重复注册。类型写字符串：security 不在 classpath 时也能解析。
+     */
+    @Bean
+    @ConditionalOnMissingBean(type = "org.springframework.security.web.SecurityFilterChain",
+                              name = "corsFilterRegistration")
+    @ConditionalOnProperty(prefix = "shepherd.web.cors", name = "enabled", havingValue = "true")
+    public FilterRegistrationBean<CorsFilter> corsFilterRegistration(
+            @Qualifier("corsConfigurationSource") CorsConfigurationSource source) {
+        FilterRegistrationBean<CorsFilter> reg = new FilterRegistrationBean<>(new CorsFilter(source));
+        reg.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
+        return reg;
     }
 
     @Bean

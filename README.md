@@ -101,7 +101,7 @@ jar 内带 `META-INF/spring-configuration-metadata.json`（由 `spring-boot-conf
 | `shepherd.web.wrap-result.enabled` | `true` | controller 返回值自动包装成 `Result`，见下文「自动包装」 |
 | `shepherd.web.wrap-result.base-packages` | 空 | 空 = 除硬排除外全部包装；非空则只包装这些包下的 controller |
 | `shepherd.web.async-mdc.enabled` | `true` | 把 MDC（含 traceId）透传进 `@Async` 线程池与虚拟线程 |
-| `shepherd.web.cors.enabled` | `false` | CORS 必须显式开启（前端 dev 走 vite proxy 同源、生产多为同域部署） |
+| `shepherd.web.cors.enabled` | `false` | CORS 必须显式开启（前端 dev 走 vite proxy 同源、生产多为同域部署）。有安全链时由 `.cors()` 生效，只用 starter-web 时由框架注册的 `CorsFilter` 生效。要完全自定义就声明名为 `corsConfigurationSource` 的 Bean；自己写 `SecurityFilterChain` 时要调用 `.cors()` |
 | `shepherd.web.cors.allowed-origins` | 空 | 具体域名列表；与 `allow-credentials=true` 组合时不得含 `*`，否则**启动 fail-fast** |
 | `shepherd.web.cors.allowed-methods` | `GET,POST,PUT,DELETE,PATCH,OPTIONS` | |
 | `shepherd.web.cors.allowed-headers` | `*` | |
