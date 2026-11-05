@@ -4,7 +4,7 @@
 
 **基线要求：Spring Boot 4.0.x / Java 21。** 105 个类是对着 Spring Framework 7 / Jackson 3（`tools.jackson.*`）编译的，低于此基线不保证可用（见下文「方式 B」的版本风险说明）。
 
-多模块 Maven 工程，groupId 与基础包分别为 `com.shepherdyun` / `com.shepherdyun.boot`，版本统一为 `0.5.0`，发布在 [Maven Central](https://central.sonatype.com/namespace/com.shepherdyun)：
+多模块 Maven 工程，groupId 与基础包分别为 `com.shepherdyun` / `com.shepherdyun.boot`，版本统一为 `0.5.1`，发布在 [Maven Central](https://central.sonatype.com/namespace/com.shepherdyun)：
 
 | 制品 | 用途 |
 |---|---|
@@ -33,7 +33,7 @@
 <parent>
   <groupId>com.shepherdyun</groupId>
   <artifactId>shepherd-parent</artifactId>
-  <version>0.5.0</version>
+  <version>0.5.1</version>
   <relativePath/>
 </parent>
 
@@ -63,7 +63,7 @@
     <dependency>
       <groupId>com.shepherdyun</groupId>
       <artifactId>shepherd-dependencies</artifactId>
-      <version>0.5.0</version>
+      <version>0.5.1</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
